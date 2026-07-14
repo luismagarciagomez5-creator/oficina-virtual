@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
+import { STATUS_LABEL_ES as STATUS_LABEL } from '../lib/statusStyles';
 import type { Agent, ChatMessage } from '../types';
 
 type Props = {
@@ -9,16 +10,6 @@ type Props = {
   onClose: () => void;
   onSend: (text: string) => void;
   onDecideApproval: (approved: boolean) => void;
-};
-
-const STATUS_LABEL: Record<Agent['status'], string> = {
-  available: 'Disponible',
-  queued: 'En cola',
-  working: 'Trabajando',
-  completed: 'Completado',
-  failed: 'Error',
-  blocked: 'Bloqueado',
-  approval_required: 'Requiere aprobación',
 };
 
 export default function ChatPanel({ agent, messages, isTyping, onClose, onSend, onDecideApproval }: Props) {

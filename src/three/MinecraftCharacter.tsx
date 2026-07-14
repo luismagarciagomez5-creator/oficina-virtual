@@ -2,6 +2,7 @@ import { Html } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { STATUS_HEX as STATUS_COLOR, STATUS_LABEL_ES as STATUS_LABEL } from '../lib/statusStyles';
 import type { Agent } from '../types';
 
 type Props = {
@@ -13,26 +14,6 @@ type Props = {
   isSelected: boolean;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
-};
-
-const STATUS_COLOR: Record<Agent['status'], string> = {
-  available: '#34d399',
-  queued: '#38bdf8',
-  working: '#fbbf24',
-  completed: '#5eead4',
-  failed: '#f43f5e',
-  blocked: '#f97316',
-  approval_required: '#e879f9',
-};
-
-const STATUS_LABEL: Record<Agent['status'], string> = {
-  available: 'Disponible',
-  queued: 'En cola',
-  working: 'Trabajando',
-  completed: 'Completado',
-  failed: 'Error',
-  blocked: 'Bloqueado',
-  approval_required: 'Requiere aprobación',
 };
 
 export default function MinecraftCharacter({

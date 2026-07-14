@@ -16,33 +16,41 @@ import type { AgentActivitySnapshot, OfficeActivityEvent, OfficeActivityState } 
 const SNAPSHOT_TICK_MS = 1000;
 const LOOP_GAP_MS = 4000;
 
-function emptySnapshots(): Record<AgentId, AgentActivitySnapshot> {
+export type OfficeActivityFeed = {
+  snapshots: Record<AgentId, AgentActivitySnapshot>;
+  /** Newest first — see src/central-events/state.ts (capped, deduped). */
+  recentEvents: OfficeActivityEvent[];
+  /** Raw reducer state, for consumers that need central-events/selectors.ts (e.g. PanelView). */
+  state: OfficeActivityState;
+};
+
+function emptyFeed(): OfficeActivityFeed {
   const now = Date.now();
   const state = createOfficeActivityState();
   const snapshots = {} as Record<AgentId, AgentActivitySnapshot>;
   for (const id of AGENT_ORDER) snapshots[id] = selectAgentActivity(state, id, now);
-  return snapshots;
+  return { snapshots, recentEvents: state.recentEvents, state };
 }
 
 /**
- * Drives the office's visual status from the shared OfficeActivityEvent
- * contract instead of chat "typing" state. Today it replays the deterministic
- * mock feed on a loop (so the office always has something happening); once a
- * real workspace exists this becomes a Supabase Realtime subscription without
- * any change to the components consuming `snapshots`.
+ * Drives the office's visual status (and the Actividad timeline) from the
+ * shared OfficeActivityEvent contract instead of chat "typing" state. Today
+ * it replays the deterministic mock feed on a loop (so the office always has
+ * something happening); once a real workspace exists this becomes a Supabase
+ * Realtime subscription without any change to the components consuming it.
  */
-export function useOfficeActivityFeed(): Record<AgentId, AgentActivitySnapshot> {
-  const [snapshots, setSnapshots] = useState<Record<AgentId, AgentActivitySnapshot>>(emptySnapshots);
+export function useOfficeActivityFeed(): OfficeActivityFeed {
+  const [feed, setFeed] = useState<OfficeActivityFeed>(emptyFeed);
   const stateRef = useRef<OfficeActivityState>(createOfficeActivityState());
 
   useEffect(() => {
     const timeouts: ReturnType<typeof setTimeout>[] = [];
 
     const recompute = () => {
-      const next = {} as Record<AgentId, AgentActivitySnapshot>;
+      const snapshots = {} as Record<AgentId, AgentActivitySnapshot>;
       const now = Date.now();
-      for (const id of AGENT_ORDER) next[id] = selectAgentActivity(stateRef.current, id, now);
-      setSnapshots(next);
+      for (const id of AGENT_ORDER) snapshots[id] = selectAgentActivity(stateRef.current, id, now);
+      setFeed({ snapshots, recentEvents: stateRef.current.recentEvents, state: stateRef.current });
     };
 
     const ingest = (event: OfficeActivityEvent) => {
@@ -82,5 +90,5 @@ export function useOfficeActivityFeed(): Record<AgentId, AgentActivitySnapshot> 
     };
   }, []);
 
-  return snapshots;
+  return feed;
 }

@@ -3,11 +3,16 @@ import { agents } from './agents';
 import { AuthProvider } from './auth/AuthContext';
 import { useAuth } from './auth/useAuth';
 import AuthGate from './auth/AuthGate';
+import ActividadView from './components/ActividadView';
+import AgentesView from './components/AgentesView';
 import ChatPanel from './components/ChatPanel';
+import MemoriaView from './components/MemoriaView';
+import PanelView from './components/PanelView';
 import PlaceholderView from './components/PlaceholderView';
 import Sidebar, { type ViewId } from './components/Sidebar';
 import TopBar, { type CameraMode } from './components/TopBar';
 import { useAgentChat } from './hooks/useAgentChat';
+import { useContactMemoryFeed } from './hooks/useContactMemoryFeed';
 import { useOfficeActivityFeed } from './hooks/useOfficeActivityFeed';
 import OfficeCanvas from './three/OfficeCanvas';
 
@@ -31,7 +36,8 @@ function OfficeApp() {
   const [activeView, setActiveView] = useState<ViewId>('oficina');
   const [cameraMode, setCameraMode] = useState<CameraMode>('iso');
   const { messagesByAgent, sendMessage, decideApproval, typingAgentId, pendingApproval } = useAgentChat();
-  const activitySnapshots = useOfficeActivityFeed();
+  const { snapshots: activitySnapshots, recentEvents, state: activityState } = useOfficeActivityFeed();
+  const { state: memoryState, forgetItem } = useContactMemoryFeed();
 
   // Visual posture comes from real (simulated, for now) operational events —
   // never from chat "typing" state. See COORDINACION_CLAUDE_CODEX.md.
@@ -50,6 +56,10 @@ function OfficeApp() {
     setActiveView('oficina');
     setSelectedId(id);
   };
+
+  // ChatPanel renders off selectedId regardless of activeView, so opening a
+  // conversation from AgentesView doesn't need to leave that view.
+  const openChat = (id: string) => setSelectedId(id);
 
   const startNewTask = (text: string) => {
     const leadIntake = agents.find((a) => a.id === 'lead-intake');
@@ -82,6 +92,14 @@ function OfficeApp() {
               onHover={() => {}}
               cameraMode={cameraMode}
             />
+          ) : activeView === 'actividad' ? (
+            <ActividadView events={recentEvents} agents={officeAgents} onSelectAgent={selectAgent} />
+          ) : activeView === 'panel' ? (
+            <PanelView state={activityState} agents={officeAgents} onSelectAgent={selectAgent} />
+          ) : activeView === 'agentes' ? (
+            <AgentesView agents={officeAgents} snapshots={activitySnapshots} onOpenOffice={selectAgent} onOpenChat={openChat} />
+          ) : activeView === 'memoria' ? (
+            <MemoriaView state={memoryState} onForgetItem={forgetItem} />
           ) : (
             <PlaceholderView title={VIEW_TITLES[activeView]} />
           )}

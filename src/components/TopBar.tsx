@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { PendingApproval } from '../hooks/useAgentChat';
+import { STATUS_TW_BG as STATUS_DOT } from '../lib/statusStyles';
 import type { Agent } from '../types';
 
 export type CameraMode = 'iso' | '2d';
@@ -11,16 +12,6 @@ type Props = {
   onNewTask: (text: string) => void;
   cameraMode: CameraMode;
   onCameraModeChange: (mode: CameraMode) => void;
-};
-
-const STATUS_DOT: Record<Agent['status'], string> = {
-  available: 'bg-emerald-400',
-  queued: 'bg-sky-400',
-  working: 'bg-amber-400',
-  completed: 'bg-teal-300',
-  failed: 'bg-rose-500',
-  blocked: 'bg-orange-500',
-  approval_required: 'bg-fuchsia-400',
 };
 
 function Backdrop({ onClose }: { onClose: () => void }) {
