@@ -17,11 +17,11 @@ export class ApprovalGate {
     this.memory = memory;
   }
 
-  request(runId: string, action: GatedAction, description: string): ApprovalRequest {
+  async request(runId: string, action: GatedAction, description: string): Promise<ApprovalRequest> {
     return this.memory.requestApproval(runId, action, description);
   }
 
-  decide(runId: string, approved: boolean): ApprovalRequest {
+  async decide(runId: string, approved: boolean): Promise<ApprovalRequest> {
     return this.memory.decideApproval(runId, approved);
   }
 }

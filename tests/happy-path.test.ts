@@ -48,7 +48,7 @@ describe('lead intake -> strategy -> proposal -> ops -> qa (happy path)', () => 
     expect(blockedOps.output).toHaveProperty('blockedReason');
 
     // 6. Human approves
-    const decided = engine.decideApproval(runId, true);
+    const decided = await engine.decideApproval(runId, true);
     expect(decided.status).toBe('approved');
 
     // 7. Operations now runs
@@ -61,7 +61,7 @@ describe('lead intake -> strategy -> proposal -> ops -> qa (happy path)', () => 
     expect((qaOnOps.output as QAResult).pass).toBe(true);
 
     // Every step left a trace.
-    const run = memory.getRun(runId)!;
+    const run = (await memory.getRun(runId))!;
     expect(run.history.length).toBeGreaterThanOrEqual(6);
     expect(run.history.every((t) => t.result === 'ok')).toBe(true);
   });

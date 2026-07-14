@@ -4,15 +4,161 @@
   --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
 }
 
+:root {
+  color-scheme: dark;
+  --onyx-black: #050407;
+  --onyx-panel: #09080c;
+  --onyx-line: rgba(255, 255, 255, 0.075);
+  --onyx-violet: #7c3aed;
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;
-  background: #0b0f1a;
+  background: #050407;
   overscroll-behavior: none;
 }
 
 * {
   box-sizing: border-box;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.onyx-app {
+  background:
+    linear-gradient(rgba(124, 58, 237, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 58, 237, 0.018) 1px, transparent 1px),
+    var(--onyx-black);
+  background-size: 36px 36px;
+}
+
+.onyx-sidebar {
+  background: linear-gradient(180deg, #08070a 0%, #060507 100%);
+  border-right: 1px solid rgba(139, 92, 246, 0.18);
+  box-shadow: 12px 0 40px rgba(0, 0, 0, 0.22);
+}
+
+.onyx-brand {
+  border-bottom: 1px solid var(--onyx-line);
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.07), transparent 52%);
+}
+
+.onyx-wordmark {
+  position: relative;
+  height: 43px;
+  overflow: hidden;
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  border-radius: 5px;
+  background: #121212;
+  box-shadow: inset 0 0 20px rgba(124, 58, 237, 0.08);
+}
+
+.onyx-wordmark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 51%;
+  transform: scale(2.12);
+  filter: contrast(1.08) saturate(1.12);
+}
+
+.onyx-nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 25%;
+  width: 2px;
+  height: 50%;
+  border-radius: 2px;
+  background: transparent;
+}
+
+.onyx-nav-item.is-active {
+  background: linear-gradient(90deg, rgba(124, 58, 237, 0.18), rgba(124, 58, 237, 0.055));
+  box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.1);
+}
+
+.onyx-nav-item.is-active::before {
+  background: #a78bfa;
+  box-shadow: 0 0 9px #7c3aed;
+}
+
+.onyx-identity {
+  border: 1px solid var(--onyx-line);
+  border-radius: 6px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.035), rgba(124, 58, 237, 0.045));
+}
+
+.onyx-topbar {
+  min-height: 53px;
+  background: rgba(8, 7, 10, 0.94);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.16);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(18px);
+}
+
+.onyx-segment,
+.onyx-control,
+.onyx-icon-button {
+  border: 1px solid var(--onyx-line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.onyx-control:hover,
+.onyx-icon-button:hover {
+  border-color: rgba(167, 139, 250, 0.32);
+  background: rgba(124, 58, 237, 0.07);
+}
+
+.onyx-popover {
+  overflow: hidden;
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  border-radius: 7px;
+  background: rgba(12, 10, 15, 0.98);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 28px rgba(124, 58, 237, 0.08);
+  backdrop-filter: blur(20px);
+}
+
+.onyx-input {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(0, 0, 0, 0.36);
+  color: rgba(255, 255, 255, 0.9);
+  outline: none;
+  transition: border-color 160ms, box-shadow 160ms;
+}
+
+.onyx-input::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.onyx-input:focus {
+  border-color: rgba(167, 139, 250, 0.58);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.onyx-chat {
+  border-left: 1px solid rgba(167, 139, 250, 0.22);
+  background: linear-gradient(180deg, rgba(10, 8, 13, 0.985), rgba(6, 5, 8, 0.985));
+  box-shadow: -24px 0 70px rgba(0, 0, 0, 0.58), -2px 0 24px rgba(124, 58, 237, 0.08);
+  backdrop-filter: blur(22px);
+}
+
+.onyx-placeholder {
+  background:
+    radial-gradient(circle at center, rgba(124, 58, 237, 0.065), transparent 33%),
+    linear-gradient(rgba(124, 58, 237, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 58, 237, 0.025) 1px, transparent 1px);
+  background-size: auto, 40px 40px, 40px 40px;
 }
 
 ::-webkit-scrollbar {
@@ -23,11 +169,11 @@ html, body, #root {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.3);
-  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.32);
+  border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.5);
+  background: rgba(167, 139, 250, 0.62);
 }
 
 .office-sign {
@@ -38,7 +184,7 @@ html, body, #root {
   padding: 7px 12px;
   border: 1px solid color-mix(in srgb, var(--agent-color) 65%, white 15%);
   border-radius: 5px;
-  background: rgba(10, 16, 28, 0.9);
+  background: rgba(8, 6, 11, 0.92);
   box-shadow: 0 0 18px color-mix(in srgb, var(--agent-color) 35%, transparent);
   color: #f8fafc;
   font: 650 12px/1.1 Inter, system-ui, sans-serif;

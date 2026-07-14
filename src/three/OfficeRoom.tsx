@@ -15,11 +15,11 @@ function Computer({ color, x = 0 }: { color: string; x?: number }) {
     <group position={[x, 0.89, -0.12]}>
       <mesh position={[0, 0.18, 0]} castShadow>
         <boxGeometry args={[0.78, 0.5, 0.08]} />
-        <meshStandardMaterial color="#111827" metalness={0.35} roughness={0.32} />
+        <meshStandardMaterial color="#09080c" metalness={0.72} roughness={0.22} />
       </mesh>
       <mesh position={[0, 0.18, 0.046]}>
         <planeGeometry args={[0.68, 0.4]} />
-        <meshStandardMaterial color="#071525" emissive="#153b5b" emissiveIntensity={0.8} />
+        <meshStandardMaterial color="#0b0612" emissive="#6d28d9" emissiveIntensity={1.15} />
       </mesh>
       <mesh position={[-0.22, 0.28, 0.052]}>
         <planeGeometry args={[0.18, 0.025]} />
@@ -27,7 +27,7 @@ function Computer({ color, x = 0 }: { color: string; x?: number }) {
       </mesh>
       <mesh position={[-0.19, 0.18, 0.052]}>
         <planeGeometry args={[0.24, 0.035]} />
-        <meshBasicMaterial color="#91a4bd" />
+        <meshBasicMaterial color="#f8fafc" />
       </mesh>
       <mesh position={[0.19, 0.15, 0.052]}>
         <planeGeometry args={[0.18, 0.17]} />
@@ -35,11 +35,11 @@ function Computer({ color, x = 0 }: { color: string; x?: number }) {
       </mesh>
       <mesh position={[0, -0.12, 0]} castShadow>
         <boxGeometry args={[0.07, 0.16, 0.07]} />
-        <meshStandardMaterial color="#151b28" metalness={0.5} />
+        <meshStandardMaterial color="#0b090e" metalness={0.75} />
       </mesh>
       <mesh position={[0, -0.2, 0.02]} castShadow>
         <boxGeometry args={[0.3, 0.035, 0.16]} />
-        <meshStandardMaterial color="#151b28" metalness={0.5} />
+        <meshStandardMaterial color="#0b090e" metalness={0.75} />
       </mesh>
     </group>
   );
@@ -52,22 +52,22 @@ function DeskSetup({ color, executive }: { color: string; executive: boolean }) 
     <group>
       <mesh position={[0, 0.69, 0]} castShadow receiveShadow>
         <boxGeometry args={[deskWidth, 0.12, 0.92]} />
-        <meshStandardMaterial color="#9a6845" roughness={0.48} />
+        <meshStandardMaterial color="#2b2530" metalness={0.44} roughness={0.3} />
       </mesh>
       {[-deskWidth / 2 + 0.15, deskWidth / 2 - 0.15].map((x) => (
         <mesh key={x} position={[x, 0.35, 0]} castShadow>
           <boxGeometry args={[0.1, 0.7, 0.72]} />
-          <meshStandardMaterial color="#263142" metalness={0.45} roughness={0.38} />
+          <meshStandardMaterial color="#151219" metalness={0.72} roughness={0.26} />
         </mesh>
       ))}
       <mesh position={[-deskWidth / 2 + 0.35, 0.37, 0.02]} castShadow>
         <boxGeometry args={[0.55, 0.6, 0.68]} />
-        <meshStandardMaterial color="#3c4655" roughness={0.55} />
+        <meshStandardMaterial color="#2b2431" metalness={0.4} roughness={0.36} />
       </mesh>
       {[0.2, 0.38, 0.56].map((y) => (
         <mesh key={y} position={[-deskWidth / 2 + 0.35, y, 0.368]}>
           <boxGeometry args={[0.4, 0.025, 0.012]} />
-          <meshBasicMaterial color="#8793a5" />
+          <meshBasicMaterial color="#8b5cf6" />
         </mesh>
       ))}
 
@@ -82,48 +82,77 @@ function DeskSetup({ color, executive }: { color: string; executive: boolean }) 
 
       <mesh position={[0, 0.77, 0.31]} rotation={[0.02, 0, 0]} castShadow>
         <boxGeometry args={[0.72, 0.035, 0.25]} />
-        <meshStandardMaterial color="#1c2431" roughness={0.4} />
+        <meshStandardMaterial color="#0d0b10" metalness={0.55} roughness={0.28} />
       </mesh>
       <mesh position={[0.58, 0.77, 0.31]} castShadow>
         <boxGeometry args={[0.13, 0.035, 0.19]} />
-        <meshStandardMaterial color="#1c2431" roughness={0.4} />
+        <meshStandardMaterial color="#0d0b10" metalness={0.55} roughness={0.28} />
       </mesh>
 
       <group position={[0, 0, 1.05]}>
         <mesh position={[0, 0.62, 0]} castShadow>
           <boxGeometry args={[0.72, 0.62, 0.15]} />
-          <meshStandardMaterial color="#334155" roughness={0.72} />
+          <meshStandardMaterial color="#292330" metalness={0.32} roughness={0.44} />
+        </mesh>
+        <mesh position={[0, 0.62, 0.081]}>
+          <boxGeometry args={[0.5, 0.045, 0.018]} />
+          <meshStandardMaterial color="#8b5cf6" emissive="#7c3aed" emissiveIntensity={1.2} />
         </mesh>
         <mesh position={[0, 0.35, -0.06]} castShadow>
           <boxGeometry args={[0.65, 0.11, 0.58]} />
-          <meshStandardMaterial color="#263244" roughness={0.72} />
+          <meshStandardMaterial color="#211b27" metalness={0.38} roughness={0.42} />
         </mesh>
         <mesh position={[0, 0.09, 0]} castShadow>
           <cylinderGeometry args={[0.07, 0.07, 0.48, 12]} />
-          <meshStandardMaterial color="#171e2b" metalness={0.5} />
+          <meshStandardMaterial color="#08070a" metalness={0.8} />
         </mesh>
         <mesh position={[0, 0.03, 0]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.035, 0.035, 0.72, 8]} />
-          <meshStandardMaterial color="#171e2b" metalness={0.5} />
+          <meshStandardMaterial color="#08070a" metalness={0.8} />
         </mesh>
       </group>
     </group>
   );
 }
 
-function Plant({ position }: { position: [number, number, number] }) {
+function LuminousBeacon({ position }: { position: [number, number, number] }) {
   return (
     <group position={position}>
-      <mesh position={[0, 0.25, 0]} castShadow>
-        <cylinderGeometry args={[0.28, 0.22, 0.5, 12]} />
-        <meshStandardMaterial color="#8c5b43" roughness={0.85} />
+      <pointLight position={[0, 1.18, 0]} color="#f5f3ff" intensity={1.35} distance={4.6} decay={2} />
+
+      <mesh position={[0, 0.08, 0]} castShadow>
+        <cylinderGeometry args={[0.34, 0.4, 0.16, 16]} />
+        <meshStandardMaterial color="#09070d" metalness={0.82} roughness={0.22} />
       </mesh>
-      {[-0.28, 0, 0.28].map((x, i) => (
-        <mesh key={x} position={[x * 0.55, 0.68 + i * 0.08, 0]} rotation={[0, 0, x]} castShadow>
-          <sphereGeometry args={[0.25, 10, 8]} />
-          <meshStandardMaterial color={i === 1 ? '#49a66d' : '#347a56'} roughness={0.85} />
+      <mesh position={[0, 0.18, 0]}>
+        <cylinderGeometry args={[0.27, 0.31, 0.08, 16]} />
+        <meshStandardMaterial color="#8b5cf6" emissive="#7c3aed" emissiveIntensity={1.4} metalness={0.55} />
+      </mesh>
+
+      <mesh position={[0, 0.82, 0]} castShadow>
+        <cylinderGeometry args={[0.09, 0.13, 1.22, 12]} />
+        <meshStandardMaterial color="#17131d" metalness={0.72} roughness={0.24} />
+      </mesh>
+      <mesh position={[0, 0.86, 0]}>
+        <cylinderGeometry args={[0.045, 0.055, 1.08, 12]} />
+        <meshStandardMaterial color="#f5f3ff" emissive="#ddd6fe" emissiveIntensity={2.2} />
+      </mesh>
+
+      {[0.48, 0.84, 1.2].map((y, i) => (
+        <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.2 + i * 0.035, 0.025, 8, 24]} />
+          <meshStandardMaterial color="#a78bfa" emissive="#8b5cf6" emissiveIntensity={1.8} metalness={0.45} />
         </mesh>
       ))}
+
+      <mesh position={[0, 1.52, 0]}>
+        <sphereGeometry args={[0.19, 16, 12]} />
+        <meshStandardMaterial color="#f5f3ff" emissive="#a78bfa" emissiveIntensity={2.1} metalness={0.28} roughness={0.2} />
+      </mesh>
+      <mesh position={[0, 1.52, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.29, 0.03, 8, 28]} />
+        <meshStandardMaterial color="#8b5cf6" emissive="#7c3aed" emissiveIntensity={2} />
+      </mesh>
     </group>
   );
 }
@@ -131,7 +160,7 @@ function Plant({ position }: { position: [number, number, number] }) {
 function WoodFloor({ width, depth }: { width: number; depth: number }) {
   const plankCount = Math.ceil(depth / 0.48);
   const plankDepth = depth / plankCount;
-  const wood = ['#7b4e32', '#8c5a38', '#70452e', '#95613d'];
+  const wood = ['#241c24', '#302331', '#1c171e', '#38263b'];
 
   return (
     <group position={[0, -0.025, 0]}>
@@ -147,7 +176,7 @@ function WoodFloor({ width, depth }: { width: number; depth: number }) {
       {[-width / 3, width / 3].map((x) => (
         <mesh key={x} position={[x, 0.039, 0]}>
           <boxGeometry args={[0.018, 0.006, depth - 0.12]} />
-          <meshBasicMaterial color="#3b281f" transparent opacity={0.55} />
+          <meshBasicMaterial color="#7c3aed" transparent opacity={0.5} />
         </mesh>
       ))}
     </group>
@@ -159,19 +188,19 @@ function OfficeWindow({ position, color }: { position: [number, number, number];
     <group position={position}>
       <mesh>
         <boxGeometry args={[1.85, 1.18, 0.09]} />
-        <meshStandardMaterial color="#131c29" metalness={0.55} roughness={0.35} />
+        <meshStandardMaterial color="#09070d" metalness={0.78} roughness={0.22} />
       </mesh>
       <mesh position={[0, 0, 0.051]}>
         <planeGeometry args={[1.62, 0.95]} />
-        <meshStandardMaterial color="#17354b" emissive="#2f7194" emissiveIntensity={0.45} metalness={0.3} roughness={0.22} />
+        <meshStandardMaterial color="#10071c" emissive="#6d28d9" emissiveIntensity={0.72} metalness={0.42} roughness={0.18} />
       </mesh>
       <mesh position={[0, 0, 0.062]}>
         <boxGeometry args={[0.045, 0.98, 0.025]} />
-        <meshStandardMaterial color="#a9b9c9" metalness={0.7} roughness={0.25} />
+        <meshStandardMaterial color="#e9d5ff" metalness={0.72} roughness={0.2} />
       </mesh>
       <mesh position={[0, 0, 0.063]}>
         <boxGeometry args={[1.65, 0.045, 0.025]} />
-        <meshStandardMaterial color="#a9b9c9" metalness={0.7} roughness={0.25} />
+        <meshStandardMaterial color="#e9d5ff" metalness={0.72} roughness={0.2} />
       </mesh>
       <mesh position={[-0.55, -0.31, 0.07]}>
         <planeGeometry args={[0.28, 0.12]} />
@@ -190,42 +219,23 @@ function OnyxLinkWallSign({ depth }: { depth: number }) {
     <Html position={[0, 2.06, -depth / 2 + 0.16]} center distanceFactor={8} zIndexRange={[4, 0]}>
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-          width: 184,
-          height: 42,
-          padding: '5px 10px',
-          border: '1px solid rgba(203, 213, 225, 0.72)',
+          width: 220,
+          height: 56,
+          border: '1px solid rgba(139, 92, 246, 0.85)',
           borderRadius: 3,
-          background: 'linear-gradient(180deg, rgba(248,250,252,.97), rgba(203,213,225,.94))',
-          boxShadow: '0 0 18px rgba(226,232,240,.35), 0 5px 14px rgba(0,0,0,.4)',
+          background: '#191919',
+          boxShadow: '0 0 24px rgba(124,58,237,.55), 0 7px 18px rgba(0,0,0,.55)',
           overflow: 'hidden',
           pointerEvents: 'none',
           userSelect: 'none',
         }}
       >
-        <span
-          style={{
-            color: '#111827',
-            fontFamily: 'Inter, system-ui, sans-serif',
-            fontSize: 22,
-            fontWeight: 900,
-            lineHeight: 1,
-            letterSpacing: 0,
-            textShadow: '0 1px 0 #fff, 0 0 5px rgba(15,23,42,.25)',
-          }}
-        >
-          ONYX
-        </span>
-        <span style={{ position: 'relative', display: 'block', width: 69, height: 31, overflow: 'hidden' }}>
-          <img
-            src="/onyxlink-logo.png"
-            alt="LINK"
-            draggable={false}
-            style={{ position: 'absolute', width: 174, height: 35, maxWidth: 'none', left: -101, top: -2 }}
-          />
-        </span>
+        <img
+          src="/onyxlink-brand.jpg"
+          alt="ONYXLINK Artificial Intelligence"
+          draggable={false}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 53%' }}
+        />
       </div>
     </Html>
   );
@@ -240,37 +250,37 @@ export default function OfficeRoom({ agent, center, width = ROOM_W, depth = ROOM
       <WoodFloor width={width} depth={depth} />
       <mesh position={[0, 0.016, 1.05]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[executive ? 3.8 : 3.25, executive ? 2.1 : 1.85]} />
-        <meshStandardMaterial color="#172033" transparent opacity={0.82} roughness={1} />
+        <meshStandardMaterial color="#17111d" transparent opacity={0.92} roughness={0.7} />
       </mesh>
 
-      <pointLight position={[0, 2.15, -depth / 2 + 1.25]} color={agent.color} intensity={1.7} distance={5.5} decay={2} />
-      <pointLight position={[0, 2.8, 1]} color="#d7e8ff" intensity={0.7} distance={5} decay={2} />
+      <pointLight position={[0, 2.15, -depth / 2 + 1.25]} color="#8b5cf6" intensity={2.45} distance={6.2} decay={2} />
+      <pointLight position={[0, 2.8, 1]} color="#f5f3ff" intensity={1.08} distance={5.6} decay={2} />
 
       <mesh position={[0, WALL_H / 2, -depth / 2]} castShadow receiveShadow>
         <boxGeometry args={[width, WALL_H, WALL_T]} />
-        <meshStandardMaterial color="#313a4d" roughness={0.82} />
+        <meshStandardMaterial color="#2a2430" metalness={0.18} roughness={0.6} />
       </mesh>
       <mesh position={[-width / 2, WALL_H / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[WALL_T, WALL_H, depth]} />
-        <meshStandardMaterial color="#283144" roughness={0.85} />
+        <meshStandardMaterial color="#1d1922" metalness={0.16} roughness={0.66} />
       </mesh>
       <mesh position={[width / 2, WALL_H / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[WALL_T, WALL_H, depth]} />
-        <meshStandardMaterial color="#283144" roughness={0.85} />
+        <meshStandardMaterial color="#1d1922" metalness={0.16} roughness={0.66} />
       </mesh>
 
       <mesh position={[0, 2.84, -0.35]}>
         <boxGeometry args={[1.9, 0.08, 0.9]} />
-        <meshStandardMaterial color="#1f2937" roughness={0.5} />
+        <meshStandardMaterial color="#09070d" metalness={0.72} roughness={0.24} />
       </mesh>
       <mesh position={[0, 2.79, -0.35]}>
         <boxGeometry args={[1.7, 0.04, 0.72]} />
-        <meshStandardMaterial color="#e7f0ff" emissive="#d7e8ff" emissiveIntensity={1.5} />
+        <meshStandardMaterial color="#f5f3ff" emissive="#c4b5fd" emissiveIntensity={1.7} />
       </mesh>
 
       <mesh position={[0, 0.1, -depth / 2 + 0.12]}>
         <boxGeometry args={[width - 0.25, 0.11, 0.08]} />
-        <meshStandardMaterial color={agent.color} emissive={agent.color} emissiveIntensity={0.65} />
+        <meshStandardMaterial color="#8b5cf6" emissive="#7c3aed" emissiveIntensity={1.1} />
       </mesh>
 
       <group position={[0, 0, deskZ]}>
@@ -280,11 +290,11 @@ export default function OfficeRoom({ agent, center, width = ROOM_W, depth = ROOM
       <group position={[-width / 2 + 0.55, 1.72, -depth / 2 + 0.16]}>
         <mesh castShadow>
           <boxGeometry args={[0.85, 0.72, 0.09]} />
-          <meshStandardMaterial color="#101827" roughness={0.55} />
+          <meshStandardMaterial color="#09070d" metalness={0.55} roughness={0.34} />
         </mesh>
         <mesh position={[0, 0, 0.052]}>
           <planeGeometry args={[0.69, 0.55]} />
-          <meshStandardMaterial color={agent.color} emissive={agent.color} emissiveIntensity={0.28} />
+          <meshStandardMaterial color="#6d28d9" emissive="#7c3aed" emissiveIntensity={0.65} />
         </mesh>
         <mesh position={[0, 0.1, 0.058]}>
           <planeGeometry args={[0.42, 0.045]} />
@@ -302,19 +312,19 @@ export default function OfficeRoom({ agent, center, width = ROOM_W, depth = ROOM
       <group position={[width / 2 - 0.52, 0, -depth / 2 + 0.48]}>
         <mesh position={[0, 0.72, 0]} castShadow>
           <boxGeometry args={[0.75, 1.44, 0.55]} />
-          <meshStandardMaterial color="#394456" roughness={0.75} />
+          <meshStandardMaterial color="#2b2431" metalness={0.4} roughness={0.38} />
         </mesh>
         {[0.32, 0.75, 1.18].map((y) => (
           <mesh key={y} position={[0, y, 0.285]}>
             <boxGeometry args={[0.62, 0.025, 0.02]} />
-            <meshBasicMaterial color="#8b98aa" />
+            <meshBasicMaterial color="#8b5cf6" />
           </mesh>
         ))}
       </group>
-      <Plant position={[width / 2 - 0.7, 0, 0.8]} />
+      <LuminousBeacon position={[width / 2 - 0.7, 0, 0.8]} />
 
       <Html position={[0, WALL_H + 0.18, -depth / 2]} center zIndexRange={[5, 0]}>
-        <div className="office-sign" style={{ '--agent-color': agent.color } as CSSProperties}>
+        <div className="office-sign" style={{ '--agent-color': '#8b5cf6' } as CSSProperties}>
           <span className="office-sign__dot" />
           {agent.department}
         </div>

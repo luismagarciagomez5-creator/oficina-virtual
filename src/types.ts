@@ -1,6 +1,10 @@
 import type { AgentId } from '../schemas';
+import type { AgentRuntimeStatus } from './central-events/types';
 
-export type AgentStatus = 'online' | 'working' | 'idle' | 'offline';
+// Reuses the coordinator/Codex activity contract (src/central-events/types.ts)
+// so the office's visual status is always one of the real operational states
+// — never a value the UI invented on its own. See COORDINACION_CLAUDE_CODEX.md.
+export type AgentStatus = AgentRuntimeStatus;
 
 export type CharacterAppearance = {
   /** Shirt / torso & arms color */

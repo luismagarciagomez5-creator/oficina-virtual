@@ -13,37 +13,37 @@ import type { Agent, AgentStatus, CharacterAppearance } from './types';
 const VISUAL: Record<AgentId, { color: string; status: AgentStatus; appearance: CharacterAppearance }> = {
   coordinator: {
     color: '#e2e8f0',
-    status: 'online',
+    status: 'available',
     appearance: { shirtColor: '#1e293b', pantsColor: '#0f172a', skinColor: '#f4c99b', hairColor: '#5c5c5c' },
   },
   'lead-intake': {
     color: '#38bdf8',
-    status: 'online',
+    status: 'available',
     appearance: { shirtColor: '#2563eb', pantsColor: '#1e293b', skinColor: '#f4c99b', hairColor: '#3b2417' },
   },
   strategy: {
     color: '#fbbf24',
-    status: 'online',
+    status: 'available',
     appearance: { shirtColor: '#7c3aed', pantsColor: '#111827', skinColor: '#f4c99b', hairColor: '#4a2c1a' },
   },
   proposal: {
     color: '#34d399',
-    status: 'working',
+    status: 'available',
     appearance: { shirtColor: '#059669', pantsColor: '#1e293b', skinColor: '#e3ab7a', hairColor: '#171310' },
   },
   operations: {
     color: '#a78bfa',
-    status: 'working',
+    status: 'available',
     appearance: { shirtColor: '#f97316', pantsColor: '#111827', skinColor: '#f4c99b', hairColor: '#222222' },
   },
   content: {
     color: '#f472b6',
-    status: 'online',
+    status: 'available',
     appearance: { shirtColor: '#db2777', pantsColor: '#1e293b', skinColor: '#e3ab7a', hairColor: '#1a1a1a' },
   },
   'review-qa': {
     color: '#2dd4bf',
-    status: 'idle',
+    status: 'available',
     appearance: { shirtColor: '#0d9488', pantsColor: '#1e293b', skinColor: '#f4c99b', hairColor: '#5c3a21' },
   },
 };

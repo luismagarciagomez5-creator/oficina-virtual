@@ -38,23 +38,23 @@ export default function Building({ agents, selectedId, onSelect, onHover }: Prop
       {/* ground beneath/around the building */}
       <mesh position={[0, -0.2, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[BUILDING_WIDTH + 20, BUILDING_DEPTH + 20]} />
-        <meshStandardMaterial color="#0d131d" roughness={1} />
+        <meshStandardMaterial color="#050407" roughness={0.9} />
       </mesh>
 
       {/* A lit circulation spine makes the separate rooms read as one office. */}
       <mesh position={[0, -0.115, corridorZ]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[BUILDING_WIDTH + 1.2, 1.15]} />
-        <meshStandardMaterial color="#273143" roughness={0.92} />
+        <meshStandardMaterial color="#110d16" metalness={0.24} roughness={0.62} />
       </mesh>
       {[-SPACING_X, 0, SPACING_X].map((x) => (
         <mesh key={x} position={[x, -0.105, corridorZ]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[0.055, 1.05]} />
-          <meshBasicMaterial color="#63738a" />
+          <meshBasicMaterial color="#7c3aed" />
         </mesh>
       ))}
       <mesh position={[0, -0.1, corridorZ]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[ROOM_W, 0.035]} />
-        <meshBasicMaterial color="#91a4bd" />
+        <meshBasicMaterial color="#a78bfa" />
       </mesh>
 
       {coordinator && <OfficeRoom agent={coordinator} center={coordCenter} width={COORD_ROOM_W} depth={COORD_ROOM_D} />}

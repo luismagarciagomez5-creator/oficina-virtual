@@ -16,17 +16,23 @@ type Props = {
 };
 
 const STATUS_COLOR: Record<Agent['status'], string> = {
-  online: '#34d399',
+  available: '#34d399',
+  queued: '#38bdf8',
   working: '#fbbf24',
-  idle: '#94a3b8',
-  offline: '#f43f5e',
+  completed: '#5eead4',
+  failed: '#f43f5e',
+  blocked: '#f97316',
+  approval_required: '#e879f9',
 };
 
 const STATUS_LABEL: Record<Agent['status'], string> = {
-  online: 'Disponible',
+  available: 'Disponible',
+  queued: 'En cola',
   working: 'Trabajando',
-  idle: 'Inactivo',
-  offline: 'Desconectado',
+  completed: 'Completado',
+  failed: 'Error',
+  blocked: 'Bloqueado',
+  approval_required: 'Requiere aprobación',
 };
 
 export default function MinecraftCharacter({

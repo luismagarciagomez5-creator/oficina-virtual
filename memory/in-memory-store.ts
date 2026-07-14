@@ -9,13 +9,14 @@ function nextId(prefix: string): string {
 
 /**
  * Process-local memory store (estructura/docs/implementation-roadmap.md Phase 1:
- * "memory interfaces"). Real persistence (disk/DB) is a later phase — swap the
- * implementation behind MemoryStore without touching callers.
+ * "memory interfaces"). Real persistence lives in memory/supabase-store.ts —
+ * this one stays around as the offline/test-friendly implementation behind
+ * the same async MemoryStore interface.
  */
 export class InMemoryMemoryStore implements MemoryStore {
   private runs = new Map<string, WorkflowRun>();
 
-  createRun(initialStage: Stage = 'new_lead'): WorkflowRun {
+  async createRun(initialStage: Stage = 'new_lead'): Promise<WorkflowRun> {
     const now = Date.now();
     const run: WorkflowRun = {
       id: nextId('run'),
@@ -29,11 +30,11 @@ export class InMemoryMemoryStore implements MemoryStore {
     return run;
   }
 
-  getRun(id: string): WorkflowRun | undefined {
+  async getRun(id: string): Promise<WorkflowRun | undefined> {
     return this.runs.get(id);
   }
 
-  updateRun(id: string, patch: Partial<Pick<WorkflowRun, 'stage' | 'artifacts' | 'pendingApproval'>>): WorkflowRun {
+  async updateRun(id: string, patch: Partial<Pick<WorkflowRun, 'stage' | 'artifacts' | 'pendingApproval'>>): Promise<WorkflowRun> {
     const run = this.mustGet(id);
     const updated: WorkflowRun = {
       ...run,
@@ -45,7 +46,7 @@ export class InMemoryMemoryStore implements MemoryStore {
     return updated;
   }
 
-  appendTrace(id: string, event: Omit<TraceEvent, 'id' | 'runId' | 'timestamp'>): TraceEvent {
+  async appendTrace(id: string, event: Omit<TraceEvent, 'id' | 'runId' | 'timestamp'>): Promise<TraceEvent> {
     const run = this.mustGet(id);
     const trace: TraceEvent = { ...event, id: nextId('trace'), runId: id, timestamp: Date.now() };
     run.history.push(trace);
@@ -53,7 +54,7 @@ export class InMemoryMemoryStore implements MemoryStore {
     return trace;
   }
 
-  requestApproval(id: string, action: GatedAction, description: string): ApprovalRequest {
+  async requestApproval(id: string, action: GatedAction, description: string): Promise<ApprovalRequest> {
     const request: ApprovalRequest = {
       id: nextId('appr'),
       runId: id,
@@ -62,11 +63,11 @@ export class InMemoryMemoryStore implements MemoryStore {
       status: 'pending',
       requestedAt: Date.now(),
     };
-    this.updateRun(id, { pendingApproval: request });
+    await this.updateRun(id, { pendingApproval: request });
     return request;
   }
 
-  decideApproval(id: string, approved: boolean): ApprovalRequest {
+  async decideApproval(id: string, approved: boolean): Promise<ApprovalRequest> {
     const run = this.mustGet(id);
     if (!run.pendingApproval) throw new Error(`Run ${id} has no pending approval`);
     const decided: ApprovalRequest = {
@@ -74,11 +75,11 @@ export class InMemoryMemoryStore implements MemoryStore {
       status: approved ? 'approved' : 'rejected',
       decidedAt: Date.now(),
     };
-    this.updateRun(id, { pendingApproval: decided });
+    await this.updateRun(id, { pendingApproval: decided });
     return decided;
   }
 
-  listRuns(): WorkflowRun[] {
+  async listRuns(): Promise<WorkflowRun[]> {
     return [...this.runs.values()];
   }
 

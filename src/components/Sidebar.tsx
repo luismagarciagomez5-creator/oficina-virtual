@@ -41,22 +41,21 @@ const NAV_ITEMS: NavItem[] = [
 type Props = {
   active: ViewId;
   onSelect: (id: ViewId) => void;
+  userEmail: string | null;
+  onSignOut: () => void;
 };
 
-export default function Sidebar({ active, onSelect }: Props) {
+export default function Sidebar({ active, onSelect, userEmail, onSignOut }: Props) {
   return (
-    <aside className="hidden md:flex w-56 shrink-0 flex-col bg-slate-950 border-r border-slate-800/80 z-20">
-      <div className="flex items-center gap-2.5 px-4 py-4 border-b border-slate-800/80">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-400 to-sky-400 flex items-center justify-center text-slate-950 font-bold text-sm shrink-0">
-          A
-        </div>
-        <div className="min-w-0">
-          <div className="text-sm font-semibold text-slate-100 truncate">Agencia IA</div>
-          <div className="text-[11px] text-slate-500 truncate">Oficina de agentes</div>
+    <aside className="onyx-sidebar hidden md:flex w-[244px] shrink-0 flex-col z-20">
+      <div className="onyx-brand px-4 py-4">
+        <div className="onyx-wordmark" aria-label="ONYXLINK">
+          <img src="/onyxlink-brand.jpg" alt="ONYXLINK" />
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+      <div className="px-4 pt-4 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/30">Centro de control</div>
+      <nav className="flex-1 overflow-y-auto py-1.5 px-2.5 space-y-0.5">
         {NAV_ITEMS.map((item) => {
           const isActive = item.id === active;
           const ItemIcon = item.icon;
@@ -64,30 +63,45 @@ export default function Sidebar({ active, onSelect }: Props) {
             <button
               key={item.id}
               onClick={() => onSelect(item.id)}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-colors ${
+              className={`onyx-nav-item relative w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] transition-all ${
                 isActive
-                  ? 'bg-indigo-500/15 text-indigo-300 font-medium'
-                  : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900'
+                  ? 'is-active text-white font-medium'
+                  : 'text-white/48 hover:text-white/85 hover:bg-white/[0.035]'
               }`}
             >
-              <ItemIcon className="w-4 h-4 shrink-0" />
+              <ItemIcon className={`w-[17px] h-[17px] shrink-0 ${isActive ? 'text-violet-300' : ''}`} />
               <span className="truncate">{item.label}</span>
+              {isActive && <span className="ml-auto w-1 h-1 rounded-full bg-violet-300 shadow-[0_0_8px_#a78bfa]" />}
             </button>
           );
         })}
       </nav>
 
-      <div className="flex items-center gap-2.5 px-4 py-3 border-t border-slate-800/80">
+      <div className="onyx-identity flex items-center gap-3 mx-3 mb-3 px-3 py-3">
         <div className="relative shrink-0">
-          <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-semibold text-slate-200">
-            AI
+          <div className="w-9 h-9 rounded-full bg-[#0d0a12] border border-violet-400/60 flex items-center justify-center text-[10px] font-bold text-white shadow-[inset_0_0_12px_rgba(124,58,237,.2)]">
+            {(userEmail ?? 'ON').slice(0, 2).toUpperCase()}
           </div>
-          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-950" />
+          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#09080b] shadow-[0_0_7px_rgba(52,211,153,.75)]" />
         </div>
-        <div className="min-w-0">
-          <div className="text-xs font-medium text-slate-200 truncate">Agencia IA</div>
-          <div className="text-[11px] text-emerald-400 truncate">En línea</div>
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-semibold text-white truncate">{userEmail ?? 'Oficina ONYXLINK'}</div>
+          <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-emerald-400 truncate">
+            <span className="w-1 h-1 rounded-full bg-emerald-400" /> En línea
+          </div>
         </div>
+        <button
+          onClick={onSignOut}
+          className="shrink-0 text-white/35 hover:text-white/80 transition-colors p-1.5 rounded-md hover:bg-white/[0.06]"
+          aria-label="Cerrar sesión"
+          title="Cerrar sesión"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <path d="M16 17l5-5-5-5" />
+            <path d="M21 12H9" />
+          </svg>
+        </button>
       </div>
     </aside>
   );

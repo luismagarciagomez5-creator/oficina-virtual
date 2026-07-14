@@ -14,10 +14,13 @@ type Props = {
 };
 
 const STATUS_DOT: Record<Agent['status'], string> = {
-  online: 'bg-emerald-400',
+  available: 'bg-emerald-400',
+  queued: 'bg-sky-400',
   working: 'bg-amber-400',
-  idle: 'bg-slate-400',
-  offline: 'bg-rose-500',
+  completed: 'bg-teal-300',
+  failed: 'bg-rose-500',
+  blocked: 'bg-orange-500',
+  approval_required: 'bg-fuchsia-400',
 };
 
 function Backdrop({ onClose }: { onClose: () => void }) {
@@ -38,18 +41,21 @@ export default function TopBar({ agents, onSelectAgent, pendingApproval, onNewTa
   };
 
   return (
-    <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 border-b border-slate-800/80 bg-slate-950 shrink-0 z-20">
+    <div className="onyx-topbar flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 shrink-0 z-20">
       <div className="flex items-center gap-2 sm:gap-3">
-        <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-0.5 text-xs">
+        <div className="md:hidden flex items-center justify-center w-8 h-8 border border-violet-400/40 rounded-md bg-black/50 text-[11px] font-bold text-white">OX</div>
+        <div className="onyx-segment flex items-center p-0.5 text-xs">
           {(['iso', '2d'] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => onCameraModeChange(mode)}
-              className={`px-2.5 py-1.5 rounded-md font-medium transition-colors ${
-                cameraMode === mode ? 'bg-indigo-500 text-white' : 'text-slate-400 hover:text-slate-200'
+              className={`px-2 sm:px-3 py-1.5 rounded-[5px] font-medium transition-colors ${
+                cameraMode === mode ? 'bg-violet-600/90 text-white shadow-[0_0_14px_rgba(124,58,237,.28)]' : 'text-white/40 hover:text-white/80'
               }`}
             >
-              {mode === 'iso' ? 'Isométrica' : '2D'}
+              {mode === 'iso' ? (
+                <><span className="sm:hidden">ISO</span><span className="hidden sm:inline">Isométrica</span></>
+              ) : '2D'}
             </button>
           ))}
         </div>
@@ -57,15 +63,15 @@ export default function TopBar({ agents, onSelectAgent, pendingApproval, onNewTa
         <div className="relative">
           <button
             onClick={() => setAgentsOpen((o) => !o)}
-            className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-200 transition-colors"
+            className="onyx-control flex items-center gap-2 px-2.5 sm:px-3 py-1.5 text-xs font-medium text-white/80 transition-colors"
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+            <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shadow-[0_0_8px_rgba(167,139,250,.8)]" />
             Agentes
           </button>
           {agentsOpen && (
             <>
               <Backdrop onClose={() => setAgentsOpen(false)} />
-              <div className="absolute left-0 top-full mt-2 w-64 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-40 py-1.5 max-h-80 overflow-y-auto">
+              <div className="onyx-popover absolute left-0 top-full mt-2 w-64 z-40 py-1.5 max-h-80 overflow-y-auto">
                 {agents.map((a) => (
                   <button
                     key={a.id}
@@ -73,7 +79,7 @@ export default function TopBar({ agents, onSelectAgent, pendingApproval, onNewTa
                       onSelectAgent(a.id);
                       setAgentsOpen(false);
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-slate-800 text-left"
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-violet-500/[0.08] text-left transition-colors"
                   >
                     <div
                       className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0"
@@ -82,8 +88,8 @@ export default function TopBar({ agents, onSelectAgent, pendingApproval, onNewTa
                       {a.name.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs font-medium text-slate-100 truncate">{a.name}</div>
-                      <div className="text-[10px] text-slate-500 truncate">{a.department}</div>
+                      <div className="text-xs font-medium text-white/90 truncate">{a.name}</div>
+                      <div className="text-[10px] text-white/35 truncate">{a.department}</div>
                     </div>
                     <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[a.status]}`} />
                   </button>
@@ -98,10 +104,10 @@ export default function TopBar({ agents, onSelectAgent, pendingApproval, onNewTa
         <div className="relative">
           <button
             onClick={() => setBellOpen((o) => !o)}
-            className="relative w-8 h-8 flex items-center justify-center bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-lg transition-colors"
+            className="onyx-icon-button relative w-8 h-8 flex items-center justify-center transition-colors"
             aria-label="Notificaciones"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-slate-300">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-white/65">
               <path d="M6 8a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 12 6 8Z" />
               <path d="M10 19a2 2 0 0 0 4 0" />
             </svg>
@@ -112,21 +118,21 @@ export default function TopBar({ agents, onSelectAgent, pendingApproval, onNewTa
           {bellOpen && (
             <>
               <Backdrop onClose={() => setBellOpen(false)} />
-              <div className="absolute right-0 top-full mt-2 w-72 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-40 p-3">
-                <div className="text-xs font-semibold text-slate-300 mb-2">Notificaciones</div>
+              <div className="onyx-popover absolute right-0 top-full mt-2 w-72 z-40 p-3">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45 mb-2">Notificaciones</div>
                 {pendingApproval ? (
                   <button
                     onClick={() => {
                       onSelectAgent(pendingApproval.agentId);
                       setBellOpen(false);
                     }}
-                    className="w-full text-left bg-rose-500/10 border border-rose-500/30 rounded-lg p-2.5 hover:bg-rose-500/15 transition-colors"
+                    className="w-full text-left bg-rose-500/10 border border-rose-500/30 rounded-md p-2.5 hover:bg-rose-500/15 transition-colors"
                   >
                     <div className="text-[11px] font-medium text-rose-300 mb-0.5">⚠️ Aprobación pendiente</div>
                     <div className="text-[11px] text-slate-400 line-clamp-3 whitespace-pre-line">{pendingApproval.description}</div>
                   </button>
                 ) : (
-                  <div className="text-xs text-slate-500">No hay notificaciones pendientes.</div>
+                  <div className="text-xs text-white/35 py-2">No hay notificaciones pendientes.</div>
                 )}
               </div>
             </>
@@ -136,27 +142,29 @@ export default function TopBar({ agents, onSelectAgent, pendingApproval, onNewTa
         <div className="relative">
           <button
             onClick={() => setTaskOpen((o) => !o)}
-            className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+            className="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-md px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-colors shadow-[0_0_18px_rgba(124,58,237,.3)] border border-violet-400/30"
           >
-            <span className="text-base leading-none">+</span> Nueva tarea
+            <span className="text-base leading-none">+</span>
+            <span className="sm:hidden">Tarea</span>
+            <span className="hidden sm:inline">Nueva tarea</span>
           </button>
           {taskOpen && (
             <>
               <Backdrop onClose={() => setTaskOpen(false)} />
-              <div className="absolute right-0 top-full mt-2 w-80 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-40 p-3">
-                <div className="text-xs font-semibold text-slate-300 mb-2">Describe el lead o la tarea</div>
+              <div className="onyx-popover absolute right-0 top-full mt-2 w-[min(20rem,calc(100vw-1.5rem))] z-40 p-3">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45 mb-2">Describe el lead o la tarea</div>
                 <textarea
                   value={taskDraft}
                   onChange={(e) => setTaskDraft(e.target.value)}
                   placeholder="Ej: tienda de zapatos que necesita atención al cliente por WhatsApp..."
                   rows={3}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-indigo-400 resize-none"
+                  className="onyx-input w-full rounded-md px-2.5 py-2 text-xs resize-none"
                 />
-                <div className="text-[10px] text-slate-500 mt-1.5 mb-2">Se envía a Lead Intake y abre su despacho.</div>
+                <div className="text-[10px] text-white/35 mt-1.5 mb-2">Se envía a Lead Intake y abre su despacho.</div>
                 <button
                   onClick={submitTask}
                   disabled={!taskDraft.trim()}
-                  className="w-full bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 text-white rounded-lg py-1.5 text-xs font-medium transition-colors"
+                  className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-md py-2 text-xs font-semibold transition-colors"
                 >
                   Crear tarea
                 </button>
@@ -165,9 +173,9 @@ export default function TopBar({ agents, onSelectAgent, pendingApproval, onNewTa
           )}
         </div>
 
-        <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400 pl-1">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
-          En línea
+        <div className="hidden lg:flex items-center gap-2 text-[11px] text-white/45 border-l border-white/[0.08] ml-1 pl-3">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_7px_rgba(52,211,153,.7)]" />
+          Oficina en línea
         </div>
       </div>
     </div>

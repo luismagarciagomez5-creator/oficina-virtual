@@ -1,15 +1,20 @@
 import { useCallback, useState } from 'react';
 import { InMemoryMemoryStore } from '../../memory/in-memory-store';
+import { SupabaseMemoryStore } from '../../memory/supabase-store';
+import type { MemoryStore } from '../../memory/types';
 import { OfficeEngine } from '../../orchestrator/engine';
 import { formatOfficeReply } from '../lib/formatOfficeReply';
+import { supabase } from '../lib/supabaseClient';
 import type { AgentId } from '../../schemas';
 import type { Agent, ChatMessage } from '../types';
 
 // One office = one run of the pipeline for the whole browser session (see
 // estructura/docs/architecture.md WorkflowRun). Every despacho talks to the
 // same engine/memory instance so a lead started at Lead Intake is still
-// there when you walk over to Strategy or Proposal.
-const memory = new InMemoryMemoryStore();
+// there when you walk over to Strategy or Proposal. Persists to Supabase
+// once configured (Fase 0); falls back to an in-memory store otherwise so
+// this hook still works standalone (e.g. without the auth gate).
+const memory: MemoryStore = supabase ? new SupabaseMemoryStore(supabase) : new InMemoryMemoryStore();
 const engine = new OfficeEngine(memory);
 let activeRunId: string | undefined;
 
@@ -45,9 +50,9 @@ export function useAgentChat() {
     }
   }, []);
 
-  const decideApproval = useCallback((agent: Agent, approved: boolean) => {
+  const decideApproval = useCallback(async (agent: Agent, approved: boolean) => {
     if (!activeRunId) return;
-    engine.decideApproval(activeRunId, approved);
+    await engine.decideApproval(activeRunId, approved);
     setPendingApproval(null);
 
     setMessagesByAgent((prev) => {

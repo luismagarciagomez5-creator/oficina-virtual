@@ -12,10 +12,13 @@ type Props = {
 };
 
 const STATUS_LABEL: Record<Agent['status'], string> = {
-  online: 'Disponible',
+  available: 'Disponible',
+  queued: 'En cola',
   working: 'Trabajando',
-  idle: 'Inactivo',
-  offline: 'Desconectado',
+  completed: 'Completado',
+  failed: 'Error',
+  blocked: 'Bloqueado',
+  approval_required: 'Requiere aprobación',
 };
 
 export default function ChatPanel({ agent, messages, isTyping, onClose, onSend, onDecideApproval }: Props) {
@@ -44,48 +47,51 @@ export default function ChatPanel({ agent, messages, isTyping, onClose, onSend, 
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 420, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-          className="fixed top-0 right-0 h-full w-full sm:w-[400px] bg-slate-950/95 border-l border-slate-800 backdrop-blur-xl z-50 flex flex-col shadow-2xl"
+          className="onyx-chat fixed top-0 right-0 h-full w-full sm:w-[410px] z-50 flex flex-col"
         >
-          <div className="flex items-center gap-3 p-4 border-b border-slate-800">
+          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-white/[0.07]">
             <div
-              className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-semibold border-2 shrink-0"
+              className="w-10 h-10 rounded-md flex items-center justify-center text-xs font-bold border shrink-0"
               style={{
-                background: `radial-gradient(circle at 35% 30%, ${agent.color}55, #0f172acc)`,
+                background: `linear-gradient(145deg, ${agent.color}3d, #0b0910 70%)`,
                 borderColor: agent.color,
               }}
             >
               {agent.name.slice(0, 2).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-slate-100 font-semibold truncate">{agent.name}</div>
-              <div className="text-xs text-slate-400 truncate">
+              <div className="text-white font-semibold truncate">{agent.name}</div>
+              <div className="text-[11px] text-white/40 truncate">
                 {agent.department} · {agent.role} · {STATUS_LABEL[agent.status]}
               </div>
             </div>
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-100 rounded-lg p-2 hover:bg-slate-800 transition-colors"
+              className="onyx-icon-button text-white/45 hover:text-white w-8 h-8 transition-colors"
               aria-label="Cerrar"
             >
               ✕
             </button>
           </div>
 
-          <p className="text-xs text-slate-500 px-4 pt-3">{agent.description}</p>
+          <div className="px-4 py-3 border-b border-white/[0.05] bg-white/[0.012]">
+            <div className="text-[9px] font-semibold uppercase tracking-[0.15em] text-violet-300/65 mb-1">Canal de agente</div>
+            <p className="text-xs leading-relaxed text-white/38">{agent.description}</p>
+          </div>
 
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
             {messages.length === 0 && (
-              <div className="text-sm text-slate-500 text-center mt-10">
+              <div className="text-sm text-white/32 text-center mt-10">
                 Escríbele a {agent.name} para empezar la conversación.
               </div>
             )}
             {messages.map((m) => (
               <div key={m.id} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
                 <div
-                  className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm leading-snug whitespace-pre-line ${
+                  className={`max-w-[85%] rounded-lg px-3.5 py-2.5 text-sm leading-snug whitespace-pre-line border ${
                     m.role === 'user'
-                      ? 'bg-indigo-500 text-white rounded-br-sm'
-                      : 'bg-slate-800 text-slate-100 rounded-bl-sm'
+                      ? 'bg-violet-600/90 border-violet-400/30 text-white rounded-br-sm shadow-[0_5px_20px_rgba(91,33,182,.16)]'
+                      : 'bg-white/[0.045] border-white/[0.07] text-white/85 rounded-bl-sm'
                   }`}
                 >
                   {m.text}
@@ -94,13 +100,13 @@ export default function ChatPanel({ agent, messages, isTyping, onClose, onSend, 
                   <div className="flex gap-2 mt-1.5">
                     <button
                       onClick={() => onDecideApproval(true)}
-                      className="text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 rounded-lg px-3 py-1 hover:bg-emerald-500/25 transition-colors"
+                      className="text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 rounded-md px-3 py-1 hover:bg-emerald-500/25 transition-colors"
                     >
                       Aprobar
                     </button>
                     <button
                       onClick={() => onDecideApproval(false)}
-                      className="text-xs font-medium bg-rose-500/15 text-rose-300 border border-rose-500/40 rounded-lg px-3 py-1 hover:bg-rose-500/25 transition-colors"
+                      className="text-xs font-medium bg-rose-500/15 text-rose-300 border border-rose-500/40 rounded-md px-3 py-1 hover:bg-rose-500/25 transition-colors"
                     >
                       Rechazar
                     </button>
@@ -114,7 +120,7 @@ export default function ChatPanel({ agent, messages, isTyping, onClose, onSend, 
             ))}
             {isTyping && (
               <div className="flex justify-start">
-                <div className="bg-slate-800 text-slate-400 rounded-2xl rounded-bl-sm px-3.5 py-2 text-sm flex gap-1">
+                <div className="bg-white/[0.045] border border-white/[0.07] text-white/40 rounded-lg rounded-bl-sm px-3.5 py-2.5 text-sm flex gap-1">
                   <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
                   <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
                   <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" />
@@ -123,18 +129,18 @@ export default function ChatPanel({ agent, messages, isTyping, onClose, onSend, 
             )}
           </div>
 
-          <div className="p-3 border-t border-slate-800 flex gap-2">
+          <div className="p-3 border-t border-white/[0.07] flex gap-2 bg-black/25">
             <input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
               placeholder={`Escribe a ${agent.name}...`}
-              className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-400"
+              className="onyx-input flex-1 rounded-md px-3.5 py-2.5 text-sm"
             />
             <button
               onClick={submit}
               disabled={!draft.trim()}
-              className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:hover:bg-indigo-500 text-white rounded-xl px-4 text-sm font-medium transition-colors"
+              className="bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:hover:bg-violet-600 text-white rounded-md px-4 text-sm font-semibold transition-colors border border-violet-400/25"
             >
               Enviar
             </button>
