@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { OfficeActivityEvent } from '../central-events/types';
 import { relativeTime } from '../lib/relativeTime';
 import { SOURCE_LABEL_ES, SOURCE_TW_TEXT, STATUS_LABEL_ES, STATUS_TW_BG } from '../lib/statusStyles';
@@ -9,6 +10,8 @@ type Props = {
   onSelectAgent: (id: string) => void;
   resolveContactId: (event: OfficeActivityEvent | null | undefined) => string | null;
   onOpenContact: (contactId: string) => void;
+  highlightedEventId?: string | null;
+  openRequestId?: number;
 };
 
 const ENTITY_LABEL_ES: Record<string, string> = {
@@ -22,9 +25,14 @@ const ENTITY_LABEL_ES: Record<string, string> = {
   template: 'Plantilla',
 };
 
-export default function ActividadView({ events, agents, onSelectAgent, resolveContactId, onOpenContact }: Props) {
+export default function ActividadView({ events, agents, onSelectAgent, resolveContactId, onOpenContact, highlightedEventId, openRequestId }: Props) {
   const now = Date.now();
   const agentById = new Map(agents.map((a) => [a.id, a]));
+  const highlightedRef = useRef<HTMLLIElement | null>(null);
+
+  useEffect(() => {
+    highlightedRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [highlightedEventId, openRequestId]);
 
   return (
     <div className="h-full flex flex-col">
@@ -45,13 +53,15 @@ export default function ActividadView({ events, agents, onSelectAgent, resolveCo
               const agent = agentById.get(event.agentId);
               const contactId = resolveContactId(event);
               return (
-                <li key={event.id}>
+                <li key={event.id} ref={event.id === highlightedEventId ? highlightedRef : undefined}>
                   <div
                     role="button"
                     tabIndex={0}
                     onClick={() => onSelectAgent(event.agentId)}
                     onKeyDown={(e) => e.key === 'Enter' && onSelectAgent(event.agentId)}
-                    className="w-full flex items-start gap-3 text-left px-3 py-2.5 rounded-lg hover:bg-white/[0.035] transition-colors cursor-pointer"
+                    className={`w-full flex items-start gap-3 text-left px-3 py-2.5 rounded-lg hover:bg-white/[0.035] transition-colors cursor-pointer ${
+                      event.id === highlightedEventId ? 'bg-violet-500/[0.08] ring-1 ring-violet-400/30' : ''
+                    }`}
                   >
                     <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${STATUS_TW_BG[event.status]}`} />
 

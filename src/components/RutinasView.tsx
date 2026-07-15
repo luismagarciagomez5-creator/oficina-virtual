@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { AgentId } from '../../schemas';
 import type { Routine, RoutineDraft, RoutineFeed, RoutineFrequency, RoutineStatus } from '../hooks/useRoutineFeed';
 import { EMPTY_ROUTINE_DRAFT, routineOccursOnDate, selectNextRun } from '../hooks/useRoutineFeed';
@@ -17,6 +17,8 @@ import type { Agent } from '../types';
 type Props = {
   feed: RoutineFeed;
   agents: Agent[];
+  openRoutineId?: string | null;
+  openRequestId?: number;
 };
 
 function agentName(agents: Agent[], agentId: AgentId | null): string {
@@ -382,7 +384,7 @@ function RoutineFormModal({
   );
 }
 
-export default function RutinasView({ feed, agents }: Props) {
+export default function RutinasView({ feed, agents, openRoutineId, openRequestId }: Props) {
   const { routines, filteredRoutines, filters, setFilters, resetFilters, createRoutine, updateRoutine } = feed;
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [monthDate, setMonthDate] = useState(() => new Date());
@@ -392,6 +394,10 @@ export default function RutinasView({ feed, agents }: Props) {
 
   const selectedRoutine = routines.find((r) => r.id === selectedRoutineId) ?? null;
   const dayRoutines = selectedDate ? filteredRoutines.filter((r) => routineOccursOnDate(r, selectedDate)) : [];
+
+  useEffect(() => {
+    if (openRoutineId) setSelectedRoutineId(openRoutineId);
+  }, [openRequestId, openRoutineId]);
 
   return (
     <div className="h-full min-h-0 flex flex-col overflow-hidden">

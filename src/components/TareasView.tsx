@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AgentId } from '../../schemas';
 import type { Contact360, ContactChannel } from '../central-contacts/types';
 import type { Task, TaskDraft, TaskFeed, TaskPriority, TaskStatus } from '../hooks/useTaskFeed';
@@ -19,6 +19,8 @@ type Props = {
   agents: Agent[];
   contacts: Contact360[];
   onOpenContact360: (contactId: string) => void;
+  openTaskId?: string | null;
+  openRequestId?: number;
 };
 
 const CHANNEL_LABEL_ES: Record<ContactChannel, string> = { whatsapp: 'WhatsApp', voice: 'Voz' };
@@ -380,13 +382,17 @@ function TaskFormModal({
   );
 }
 
-export default function TareasView({ feed, agents, contacts, onOpenContact360 }: Props) {
+export default function TareasView({ feed, agents, contacts, onOpenContact360, openTaskId, openRequestId }: Props) {
   const { loading, tasks, filteredTasks, filters, setFilters, resetFilters, createTask, updateTask } = feed;
   const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null);
 
   const selectedTask = filteredTasks.find((t) => t.id === selectedTaskId) ?? tasks.find((t) => t.id === selectedTaskId) ?? null;
+
+  useEffect(() => {
+    if (openTaskId) setSelectedTaskId(openTaskId);
+  }, [openRequestId, openTaskId]);
 
   return (
     <div className="h-full flex flex-col">

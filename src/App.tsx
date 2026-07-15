@@ -8,10 +8,12 @@ import ActividadView from './components/ActividadView';
 import AgentesView from './components/AgentesView';
 import AnalisisView from './components/AnalisisView';
 import BandejaView from './components/BandejaView';
+import BuscarView from './components/BuscarView';
 import ChatPanel from './components/ChatPanel';
 import Contact360Panel from './components/Contact360Panel';
 import ConfiguradorView from './components/ConfiguradorView';
 import ContactosView from './components/ContactosView';
+import InformesView from './components/InformesView';
 import MemoriaView from './components/MemoriaView';
 import PanelView from './components/PanelView';
 import PlaceholderView from './components/PlaceholderView';
@@ -21,6 +23,7 @@ import TareasView from './components/TareasView';
 import TopBar, { type CameraMode } from './components/TopBar';
 import { useAgentChat } from './hooks/useAgentChat';
 import { useAnalyticsFeed } from './hooks/useAnalyticsFeed';
+import { useGlobalSearch } from './hooks/useGlobalSearch';
 import { resolveContactIdFromEvent, useContact360Feed } from './hooks/useContact360Feed';
 import { useContactMemoryFeed } from './hooks/useContactMemoryFeed';
 import { useInboxFeed } from './hooks/useInboxFeed';
@@ -28,8 +31,10 @@ import { useOfficeActivation } from './hooks/useOfficeActivation';
 import { useOfficeActivityFeed } from './hooks/useOfficeActivityFeed';
 import { useOfficeConfigurator } from './hooks/useOfficeConfigurator';
 import { useRoutineFeed } from './hooks/useRoutineFeed';
+import { useReportsFeed } from './hooks/useReportsFeed';
 import { useTaskFeed } from './hooks/useTaskFeed';
 import OfficeCanvas from './three/OfficeCanvas';
+import type { GlobalSearchResult, GlobalSearchSources, GlobalSearchView } from './central-search';
 
 // Demo-only workspace id for the template configurator — this module has no
 // real workspace selector yet ("todavía sin conexiones reales").
@@ -67,12 +72,27 @@ function OfficeApp() {
   const inboxFeed = useInboxFeed();
   const taskFeed = useTaskFeed();
   const routineFeed = useRoutineFeed();
+  const searchSources = useMemo<GlobalSearchSources>(() => ({
+    contacts: contact360List,
+    conversations: inboxFeed.threads,
+    tasks: Object.values(taskFeed.state.tasks),
+    routines: Object.values(routineFeed.state.routines),
+    memories: Object.values(memoryState.profiles),
+    activities: recentEvents,
+  }), [contact360List, inboxFeed.threads, memoryState.profiles, recentEvents, routineFeed.state.routines, taskFeed.state.tasks]);
+  const globalSearch = useGlobalSearch(DEMO_CONFIGURATOR_WORKSPACE_ID, searchSources);
+  const [searchOpenTarget, setSearchOpenTarget] = useState<{
+    view: GlobalSearchView;
+    entityId: string;
+    requestId: number;
+  } | null>(null);
   const analyticsFeed = useAnalyticsFeed({
     workspaceId: DEMO_CONFIGURATOR_WORKSPACE_ID,
     events: recentEvents,
     taskState: taskFeed.state,
     routineState: routineFeed.state,
   });
+  const reportsFeed = useReportsFeed(DEMO_CONFIGURATOR_WORKSPACE_ID, analyticsFeed.analytics);
   // Demo-only stand-in for Codex's real ONYXLINK-superadmin role check —
   // see the note on Sidebar's isSuperAdmin prop. Drives both nav visibility
   // and the actor role sent to decideVirtualOfficeActivation, so there's a
@@ -119,6 +139,19 @@ function OfficeApp() {
     void sendMessage(leadIntake, text);
   };
 
+  const openSearchResult = (result: GlobalSearchResult) => {
+    if (result.target.view === 'bandeja') inboxFeed.resetFilters();
+    if (result.target.view === 'tareas') taskFeed.resetFilters();
+    if (result.target.view === 'rutinas') routineFeed.resetFilters();
+    setSearchOpenTarget((previous) => ({
+      view: result.target.view,
+      entityId: result.target.entityId,
+      requestId: (previous?.requestId ?? 0) + 1,
+    }));
+    setActiveView(result.target.view);
+    if (result.category === 'contact' && result.target.contactId) setContact360Id(result.target.contactId);
+  };
+
   return (
     <div className="onyx-app h-screen w-full text-slate-100 flex overflow-hidden">
       <Sidebar
@@ -162,6 +195,8 @@ function OfficeApp() {
               onSelectAgent={selectAgent}
               resolveContactId={resolveContactIdFromEvent}
               onOpenContact={setContact360Id}
+              highlightedEventId={searchOpenTarget?.view === 'actividad' ? searchOpenTarget.entityId : null}
+              openRequestId={searchOpenTarget?.requestId}
             />
           ) : activeView === 'panel' ? (
             <PanelView state={activityState} agents={officeAgents} onSelectAgent={selectAgent} />
@@ -177,11 +212,31 @@ function OfficeApp() {
           ) : activeView === 'contactos' ? (
             <ContactosView contacts={contact360List} onOpenContact={setContact360Id} />
           ) : activeView === 'bandeja' ? (
-            <BandejaView feed={inboxFeed} agents={officeAgents} onOpenContact360={setContact360Id} />
+            <BandejaView
+              feed={inboxFeed}
+              agents={officeAgents}
+              onOpenContact360={setContact360Id}
+              openContactId={searchOpenTarget?.view === 'bandeja' ? searchOpenTarget.entityId : null}
+              openRequestId={searchOpenTarget?.requestId}
+            />
           ) : activeView === 'tareas' ? (
-            <TareasView feed={taskFeed} agents={officeAgents} contacts={contact360List} onOpenContact360={setContact360Id} />
+            <TareasView
+              feed={taskFeed}
+              agents={officeAgents}
+              contacts={contact360List}
+              onOpenContact360={setContact360Id}
+              openTaskId={searchOpenTarget?.view === 'tareas' ? searchOpenTarget.entityId : null}
+              openRequestId={searchOpenTarget?.requestId}
+            />
           ) : activeView === 'rutinas' ? (
-            <RutinasView feed={routineFeed} agents={officeAgents} />
+            <RutinasView
+              feed={routineFeed}
+              agents={officeAgents}
+              openRoutineId={searchOpenTarget?.view === 'rutinas' ? searchOpenTarget.entityId : null}
+              openRequestId={searchOpenTarget?.requestId}
+            />
+          ) : activeView === 'buscar' ? (
+            <BuscarView feed={globalSearch} onOpenResult={openSearchResult} />
           ) : activeView === 'analiticas' ? (
             <AnalisisView
               analytics={analyticsFeed.analytics}
@@ -190,8 +245,15 @@ function OfficeApp() {
               onPeriodChange={analyticsFeed.setPeriod}
               agents={officeAgents}
             />
+          ) : activeView === 'informes' ? (
+            <InformesView feed={reportsFeed} agents={officeAgents} />
           ) : activeView === 'memoria' ? (
-            <MemoriaView state={memoryState} onForgetItem={forgetItem} />
+            <MemoriaView
+              state={memoryState}
+              onForgetItem={forgetItem}
+              openContactId={searchOpenTarget?.view === 'memoria' ? searchOpenTarget.entityId : null}
+              openRequestId={searchOpenTarget?.requestId}
+            />
           ) : activeView === 'activacion' && isSuperAdmin ? (
             <ActivacionView
               snapshot={officeActivation.snapshot}

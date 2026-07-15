@@ -708,3 +708,62 @@ Validación:
 - Verificado visualmente con Playwright (instalado y desinstalado solo para la verificación) en escritorio y móvil: los 4 periodos, filtro por agente, barras por origen/canal y tabla por agente con datos reales de tus fixtures — sin errores de consola tras el fix de workspaceId.
 
 Si prefieres que `useAnalyticsFeed` reciba el estado desde `App.tsx` (en vez de que cada hook lo mantenga encapsulado), dímelo y ajusto `useTaskFeed`/`useRoutineFeed` para exponer su `CentralTaskState`/`CentralRoutineState` — así Análisis, Tareas y Rutinas comparten una sola fuente de verdad en memoria en vez de dos.
+
+## Bloque de Claude: BuscarView (solo interfaz visual)
+
+Este bloque vino con instrucción explícita de no tocar `src/central-search/` ni crear reducer, fixtures o hook provisional — así que a diferencia de bloques anteriores, no hay ningún archivo "temporal a reconciliar después". Encontré que ya habías publicado `src/central-search/` **y** `src/hooks/useGlobalSearch.ts` (el adaptador), así que construí directamente contra ese contrato real desde el principio.
+
+- `src/components/BuscarView.tsx` (nuevo): recibe `feed: GlobalSearchFeed` (tu `useGlobalSearch`) y `onOpenResult: (result: GlobalSearchResult) => void` — nada más. Agrupa `feed.results` por `category` en el orden fijo `contact/conversation/task/routine/memory/activity` (agrupar para mostrar no es recalcular relevancia; el orden y el contenido de cada grupo siguen siendo los que devuelve tu `searchWorkspace`). Buscador fijo arriba (fuera del área que hace scroll, mismo patrón que el resto de vistas), filtros por categoría, resaltado de coincidencias con `<mark>` (case-insensitive, escapando regex), navegación con teclado (↑/↓ mueve el foco por los resultados aplanados en orden de grupo, Enter abre vía `onOpenResult`, Escape limpia la búsqueda, scroll-into-view del resultado enfocado), estados de prompt inicial / cargando / error (`unauthorized`/`workspace_mismatch` mapeados) / sin resultados, y diseño responsive (los filtros hacen wrap, todo es una sola columna).
+- `src/lib/searchStyles.ts` (nuevo): solo etiquetas y colores en español de `GlobalSearchCategory` — mismo patrón que `statusStyles.ts`.
+- `result.target` (`{ view, entityId, contactId }`) ya trae todo lo necesario para que quien conecte esto en `App.tsx` navegue a la vista correcta — no me correspondía implementar ese ruteo en este bloque, así que `onOpenResult` queda como callback abierto.
+
+Cómo lo verifiqué sin tocar el reparto: conecté `BuscarView` temporalmente en `App.tsx` (con `useGlobalSearch` real armando `GlobalSearchSources` desde `contact360List`, `inboxFeed.threads`, `Object.values(taskFeed.state.tasks)`, `Object.values(routineFeed.state.routines)`, `Object.values(memoryState.profiles)` y `recentEvents` — todos datos reales ya en la app) más el bypass de login habitual, tomé las capturas, y revertí ambos cambios por completo antes de terminar (`git diff` contra `App.tsx`/`AuthGate.tsx` queda vacío).
+
+Validación:
+
+- `npx tsc -b`: correcto.
+- `npm run lint`: limpio.
+- `npx vitest run`: 18 archivos, 102 pruebas, todo en verde.
+- `npm run build`: correcto (mismo aviso informativo de bundle).
+- Verificado visualmente (Playwright instalado y desinstalado solo para la verificación, wiring de `App.tsx` revertido): búsqueda "lucía" agrupó correctamente en Contactos/Conversaciones/Memoria con el resaltado funcionando incluso con mayúsculas distintas a la búsqueda; ↓↓ movió el foco de Contactos a Memoria con scroll correcto; filtro "Tareas" y estado sin resultados funcionan; en móvil los filtros hacen wrap y la lista se lee bien con una consulta de una sola letra (muchas coincidencias resaltadas, esperado).
+
+Cuando decidas cómo conectar `BuscarView` en `App.tsx` (armar `GlobalSearchSources` desde las fuentes reales ya existentes y decidir el ruteo de `onOpenResult`), avísame si quieres que lo haga yo o si prefieres hacerlo tú como parte del adaptador.
+
+## Reconciliación Codex: Buscar global conectado
+
+- `App.tsx` construye `GlobalSearchSources` desde los estados vivos de Contactos, Bandeja, Tareas, Rutinas, Memoria y Actividad y consume `useGlobalSearch`.
+- `BuscarView` ya sustituye el placeholder de la vista `buscar`.
+- Los resultados abren su destino real: ficha Contacto 360, conversación seleccionada, detalle de tarea, detalle de rutina, perfil de memoria o actividad resaltada.
+- Antes de abrir Bandeja, Tareas o Rutinas se limpian sus filtros para que el resultado no quede oculto.
+- Las vistas aceptan un identificador de apertura y un `requestId`, de modo que volver a abrir el mismo resultado funciona incluso después de cerrar su detalle.
+
+## Bloque de Claude: InformesView (solo interfaz visual)
+
+Instrucción explícita de no tocar `src/central-reports`, `useReportsFeed` ni `App.tsx`, y de no crear reducer, fixtures ni exportadores. Cuando empecé a construir la vista, `src/central-reports/` y `src/hooks/useReportsFeed.ts` todavía no existían, así que definí un contrato `ReportsFeed` propio dentro de `InformesView.tsx` (tipos `ReportCategory`/`ReportStatus`/`GeneratedReport` inventados, en español) para poder construir la interfaz sin bloquearme. **Mientras validaba esa primera versión apareciste tú con el motor real** (`src/central-reports/` + `src/hooks/useReportsFeed.ts`, ambos completos) — igual que pasó con Buscar, así que descarté por completo mi contrato inventado y reconstruí el componente directamente contra el tuyo antes de dar nada por terminado. No quedó ningún tipo ni lógica de mi primera versión.
+
+- `src/components/InformesView.tsx` (reescrito): recibe `feed: ReportsFeed` (tu `useReportsFeed`) y `agents: Agent[]` — nada más. Selector de periodo (`AnalyticsPeriod`, tus 4 valores) y de agentes (multi-selección por píldoras, vacío = "Todos los agentes") como **estado local de la vista**, etiquetado explícitamente "Periodo y agentes para el próximo informe": no filtra la lista de informes ya generados (cada fila ya muestra su propio periodo/agentes; tu `ReportsFeed` no expone ningún método de filtrado de la lista, así que no inventé uno). "+ Generar informe" abre un selector de las 7 categorías (`ReportKind`: overview/agents/channels/tasks/routines/approvals/incidents, con label y descripción en español) — al elegir una, llamo `createReport({ title, kind, period, agentIds })` con un título autogenerado (`"<Categoría> · <Periodo>"`, ya que tu esquema exige `title` no vacío) y, si se creó, `generateReport(id)` inmediatamente y abro su previsualización.
+- Lista de informes (`CentralReport[]` vía `selectReports`, ya ordenados/filtrados por ti — nunca muestro `deleted`): título, badge de periodo/agentes, badge de estado (`draft`/`generating`/`ready`/`failed`, con las 4 etiquetas y colores en español), acciones "Generar"/"Regenerar" (mismo callback, tu hook los alía), "Exportar PDF"/"Exportar CSV" (solo habilitados en `ready`) y "Eliminar". Todas llaman directo a `feed.generateReport`/`regenerateReport`/`deleteReport`/`exportReport` — ningún botón simula una descarga; `exportReport` solo registra la solicitud (`ReportExportRequest`) y la vista muestra un aviso "Exportación solicitada: `<filename>`" con `feed.lastExportRequest`, sin crear ningún blob ni enlace de descarga.
+- Previsualización (modal): estado `generating` (spinner), `failed` (muestra `report.failureReason` tal cual), sin contenido todavía, o el `ReportContent` real — `metrics` (con formateo por `unit`: count/percent/milliseconds) y `sections` (tablas genéricas por `columns`/`rows`). Las columnas de las tablas (`channel`, `agentId`, etc.) se muestran solo "humanizadas" (primera letra mayúscula, camelCase separado) sin traducir su significado, porque no me correspondía inventar una nomenclatura de dominio que tú no definiste.
+- `src/lib/reportStyles.ts` (reescrito): etiquetas/colores en español de `ReportKind`, `ReportStatus`, `ReportFormat`, más `formatReportMetricValue` y `humanizeReportColumn` — mismo patrón que `statusStyles.ts`. Reexporta `ANALYTICS_PERIOD_LABEL_ES` de `analyticsStyles.ts` como `REPORT_PERIOD_LABEL_ES` en lugar de duplicar las 4 etiquetas de periodo.
+
+Verificación (dos rondas, la segunda ya contra tu motor real): wiring temporal de `InformesView` en `App.tsx` + `useReportsFeed(workspaceId, analyticsFeed.analytics)` real + bypass de login habitual, capturas con Playwright, reversión completa antes de terminar (`git diff` contra `App.tsx`/`AuthGate.tsx`/`package.json` queda igual que antes de empezar, salvo el wiring de Buscar que ya era tuyo). Probé: los 2 informes sembrados por tu hook (`Resumen operativo` listo, `Rendimiento por agente` borrador), generar un informe nuevo de "Canales" (pasa a `ready` y su tabla por canal se ve con datos en cero porque no hay actividad real en la fixture de demo — esperado), exportar PDF desde la previsualización de "Resumen operativo" (banner de confirmación con el nombre de archivo real que arma `requestReportExport`), eliminar un informe, y el layout en móvil.
+
+Validación:
+
+- `npx tsc -b`: correcto.
+- `npm run lint`: limpio.
+- `npx vitest run`: 19 archivos, 106 pruebas, todo en verde (incluye tus `tests/central-reports.test.ts`).
+- `npm run build`: correcto (mismo aviso informativo de bundle).
+- Sin errores de consola en ninguna de las dos rondas de verificación visual.
+
+No toqué `src/central-reports/`, `src/hooks/useReportsFeed.ts` ni `App.tsx`. Cuando decidas conectar `InformesView` de forma permanente, solo necesitas pasarle `feed={useReportsFeed(workspaceId, analytics)}` y `agents={officeAgents}` — sin cambios de contrato de mi lado.
+
+## Reconciliación Codex: Informes conectado
+
+- `App.tsx` consume `useReportsFeed(workspace-demo, analyticsFeed.analytics)` y renderiza `InformesView` en la vista `informes`.
+- Los informes se generan desde el mismo `WorkspaceAnalytics` vivo que alimenta Análisis; no existe una segunda copia de tareas, rutinas o actividad.
+- PDF/CSV siguen siendo solicitudes de exportación seguras y auditables; no se crean blobs ni descargas falsas en el navegador.
+
+Validación tras integrar: 19 archivos / 106 tests y build de producción en verde.
+
+Validación tras integrar: 18 archivos / 102 tests y build de producción en verde.

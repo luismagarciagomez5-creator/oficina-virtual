@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { searchContactMemories, selectMemoryProfiles, selectMemorySources } from '../central-memory';
 import type { CentralMemoryState, ContactMemoryItem, MemoryCategory } from '../central-memory/types';
 import { relativeTime } from '../lib/relativeTime';
@@ -7,6 +7,8 @@ import { SOURCE_LABEL_ES, SOURCE_TW_TEXT } from '../lib/statusStyles';
 type Props = {
   state: CentralMemoryState;
   onForgetItem: (contactId: string, itemId: string) => void;
+  openContactId?: string | null;
+  openRequestId?: number;
 };
 
 const CATEGORY_LABEL_ES: Record<MemoryCategory, string> = {
@@ -60,10 +62,14 @@ function FactRow({
   );
 }
 
-export default function MemoriaView({ state, onForgetItem }: Props) {
+export default function MemoriaView({ state, onForgetItem, openContactId, openRequestId }: Props) {
   const now = Date.now();
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (openContactId) setSelectedId(openContactId);
+  }, [openContactId, openRequestId]);
 
   const allProfiles = selectMemoryProfiles(state);
   const filteredProfiles = useMemo(() => {

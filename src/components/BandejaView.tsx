@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AgentId } from '../../schemas';
 import type { InboxFeed } from '../hooks/useInboxFeed';
 import {
@@ -17,6 +17,8 @@ type Props = {
   feed: InboxFeed;
   agents: Agent[];
   onOpenContact360: (contactId: string) => void;
+  openContactId?: string | null;
+  openRequestId?: number;
 };
 
 const CHANNEL_TABS: { id: 'all' | 'whatsapp' | 'voice'; label: string }[] = [
@@ -253,10 +255,14 @@ function ThreadDetail({
   );
 }
 
-export default function BandejaView({ feed, agents, onOpenContact360 }: Props) {
+export default function BandejaView({ feed, agents, onOpenContact360, openContactId, openRequestId }: Props) {
   const { filteredThreads, filters, setFilters, resetFilters, stats, draftsByContact, addDraftMessage } = feed;
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const selectedThread = filteredThreads.find((t) => t.contactId === selectedContactId) ?? null;
+
+  useEffect(() => {
+    if (openContactId) setSelectedContactId(openContactId);
+  }, [openContactId, openRequestId]);
 
   return (
     <div className="h-full flex flex-col">
