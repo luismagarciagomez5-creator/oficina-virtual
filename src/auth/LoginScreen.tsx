@@ -28,7 +28,7 @@ export default function LoginScreen() {
           <div className="w-12 h-12 rounded-md bg-[#151219] border border-violet-500/70 shadow-[0_0_16px_rgba(124,58,237,.32)] flex items-center justify-center text-violet-300 font-bold text-lg mb-3">
             O
           </div>
-          <div className="text-slate-100 font-semibold tracking-wide">ONYXLINK</div>
+          <div className="text-slate-100 font-semibold tracking-wide">OFICINA VIRTUAL</div>
           <div className="text-[11px] text-violet-300/55">Oficina de agentes · acceso del equipo</div>
         </div>
 
@@ -38,7 +38,7 @@ export default function LoginScreen() {
           autoComplete="username"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="tu@onyxlink.ai"
+          placeholder="tu@empresa.com"
           className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-violet-400 mb-4"
         />
 

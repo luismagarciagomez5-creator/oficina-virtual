@@ -34,7 +34,7 @@ export default function TopBar({ agents, onSelectAgent, pendingApproval, onNewTa
   return (
     <div className="onyx-topbar flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 shrink-0 z-20">
       <div className="flex items-center gap-2 sm:gap-3">
-        <div className="md:hidden flex items-center justify-center w-8 h-8 border border-violet-400/40 rounded-md bg-black/50 text-[11px] font-bold text-white">OX</div>
+        <div className="md:hidden flex items-center justify-center w-8 h-8 border border-violet-400/40 rounded-md bg-black/50 text-[11px] font-bold text-white">OV</div>
         <div className="onyx-segment flex items-center p-0.5 text-xs">
           {(['iso', '2d'] as const).map((mode) => (
             <button
@@ -54,6 +54,8 @@ export default function TopBar({ agents, onSelectAgent, pendingApproval, onNewTa
         <div className="relative">
           <button
             onClick={() => setAgentsOpen((o) => !o)}
+            aria-expanded={agentsOpen}
+            aria-haspopup="menu"
             className="onyx-control flex items-center gap-2 px-2.5 sm:px-3 py-1.5 text-xs font-medium text-white/80 transition-colors"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shadow-[0_0_8px_rgba(167,139,250,.8)]" />
@@ -62,7 +64,11 @@ export default function TopBar({ agents, onSelectAgent, pendingApproval, onNewTa
           {agentsOpen && (
             <>
               <Backdrop onClose={() => setAgentsOpen(false)} />
-              <div className="onyx-popover absolute left-0 top-full mt-2 w-64 z-40 py-1.5 max-h-80 overflow-y-auto">
+              <div
+                className="onyx-popover onyx-agent-menu absolute left-0 top-full mt-2 w-64 z-40 py-1.5"
+                role="menu"
+                aria-label="Seleccionar agente"
+              >
                 {agents.map((a) => (
                   <button
                     key={a.id}
@@ -70,6 +76,7 @@ export default function TopBar({ agents, onSelectAgent, pendingApproval, onNewTa
                       onSelectAgent(a.id);
                       setAgentsOpen(false);
                     }}
+                    role="menuitem"
                     className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-violet-500/[0.08] text-left transition-colors"
                   >
                     <div

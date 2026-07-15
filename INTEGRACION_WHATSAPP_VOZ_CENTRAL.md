@@ -67,6 +67,37 @@ La opción más sólida es portar la oficina 3D a una ruta de `WhatsApp-saas`, p
 
 Mantener dos frontends separados obligaría a resolver autenticación compartida, CORS, sincronización de navegación y versionado duplicado. Puede servir durante el prototipo, pero no debería ser el diseño final.
 
+### Activación por cliente
+
+La Oficina Virtual no forma parte del alta inicial de YCloud y nunca debe pedir al cliente que conecte WhatsApp por segunda vez. El flujo definitivo es:
+
+1. ONYXLINK crea el workspace y conecta YCloud en el panel actual.
+2. El agente de WhatsApp funciona y se valida en producción.
+3. Se activan, según el servicio contratado, memoria avanzada, Vapi y memoria cruzada.
+4. Solo un superadministrador de ONYXLINK habilita `virtual_office_enabled` cuando el workspace cumple los requisitos.
+5. Mientras el flag sea `false`, el cliente no ve enlaces, navegación, ruta ni contenido de Oficina Virtual.
+6. Cuando ONYXLINK activa el flag, los administradores autorizados del workspace pueden acceder a `/central`.
+
+`virtual_office_enabled` será un add-on comercial y operativo desactivado por defecto, siguiendo el mismo patrón de activación administrativa que memoria avanzada, memoria compartida y recuperación de leads fríos. El administrador del cliente no puede activarlo por sí mismo. No reemplaza `whatsapp_agent_enabled`, `vapi_assistant_id`, `advanced_memory_enabled` ni `cross_channel_memory_enabled`.
+
+## Plantilla de siete puestos
+
+La oficina tiene siete puestos visuales estables:
+
+| AgentId técnico actual | Puesto de producto | Respaldo real actual |
+| --- | --- | --- |
+| `coordinator` | Orquestador | Futuro agregador de eventos y workflows de la oficina |
+| `lead-intake` | Agente WhatsApp | Agente activo del workspace, YCloud, conversaciones y mensajes |
+| `strategy` | Agente de Voz | Asistente Vapi y `voice_calls` |
+| `proposal` | Especialista configurable 1 | Capacidad futura |
+| `operations` | Especialista configurable 2 | Capacidad futura |
+| `content` | Especialista configurable 3 | Capacidad futura |
+| `review-qa` | Especialista configurable 4 | Capacidad futura |
+
+Los identificadores técnicos no se renombrarán durante el prototipo porque también pertenecen al orquestador y a sus esquemas. La capa `src/central-events/agent-bindings.ts` traduce esos identificadores a los puestos de producto.
+
+El SaaS actual guarda tres configuraciones de agente WhatsApp (`setter`, `soporte`, `agendamiento`), pero impone exactamente una activa por workspace. La oficina debe mostrar ese único runtime en el puesto WhatsApp; no debe representar esas tres configuraciones como trabajadores simultáneos. El puesto Voz es independiente porque está respaldado por Vapi. Los cuatro especialistas restantes solo se mostrarán trabajando cuando exista una ejecución real que los respalde.
+
 ## Contrato de actividad para la oficina
 
 La interfaz no debe deducir el estado de los agentes a partir de animaciones o temporizadores. Debe recibir eventos operativos normalizados.
@@ -104,18 +135,19 @@ Para la primera versión se puede reutilizar la tabla `events` existente y añad
 - Resume la carga global del workspace.
 - Permite preguntar por cualquier contacto, conversación, llamada o proyecto.
 
-### Lead Intake
+### Agente WhatsApp (`lead-intake`)
 
-- Se activa al entrar un contacto nuevo por WhatsApp o voz.
-- Normaliza teléfono, crea o actualiza contacto y registra origen.
-- Extrae nombre, necesidad, empresa, presupuesto e intención.
-- Unifica a la persona por `workspace_id + phone` para evitar duplicados entre canales.
+- Representa el único agente WhatsApp activo del workspace, sea setter, soporte o agendamiento.
+- Se activa al recibir, procesar o enviar actividad real mediante YCloud.
+- Usa el contacto, conversación, memoria, KB, herramientas y pipeline existentes.
+- No almacena credenciales ni reproduce el motor conversacional dentro de la oficina.
 
-### Estrategia
+### Agente de Voz (`strategy`)
 
-- Se activa durante calificación y clasificación del pipeline.
-- Analiza memoria, resumen de conversación, KB y contexto empresarial.
-- Sugiere siguiente etapa, prioridad, seguimiento y mejor canal.
+- Representa el asistente Vapi vinculado al workspace.
+- Se activa con eventos de llamada iniciada, conectada, tool ejecutada, finalizada o fallida.
+- Vincula la llamada al mismo contacto por teléfono normalizado.
+- Comparte memoria con WhatsApp solo cuando los flags correspondientes estén activos.
 
 ### Propuestas
 
@@ -160,8 +192,8 @@ Para la primera versión se puede reutilizar la tabla `events` existente y añad
 
 ## Experiencias de producto recomendadas
 
-1. Al llegar un WhatsApp, Lead Intake se sienta y su monitor muestra el nombre del contacto.
-2. Al comenzar una llamada Vapi, aparece un indicador de llamada activa y el agente correspondiente trabaja.
+1. Al llegar un WhatsApp, el Agente WhatsApp se sienta y su monitor muestra el contacto o conversación.
+2. Al comenzar una llamada Vapi, el Agente de Voz se sienta y muestra el estado de llamada.
 3. Cuando termina una llamada, se muestra resumen, sentimiento, duración, coste y siguiente acción.
 4. Un mismo contacto conserva memoria entre llamada y WhatsApp.
 5. Al detectar intención comercial, Estrategia se activa y el deal cambia de fase.
@@ -263,3 +295,13 @@ El primer entregable debería ser una central de lectura real, no una integraci�
 
 Este corte valida la experiencia y la arquitectura sin arriesgar envíos, citas o cambios de CRM. Después se añaden acciones una por una con permisos, idempotencia y aprobación.
 
+## Propiedad de prompts y configuración
+
+La Oficina Virtual no duplica prompts de canales que ya tienen una fuente de verdad:
+
+- WhatsApp conserva su prompt y comportamiento en el panel actual del agente WhatsApp. La oficina referencia `activeWhatsappAgentId`.
+- Voz conserva su prompt y herramientas en Vapi. La oficina referencia `vapiAssistantId`.
+- Orquestador y los cuatro especialistas sí pertenecen a la configuración versionada de Oficina Virtual.
+- La interfaz puede mostrar estado, referencia y acceso a la configuración original, pero no copia prompts externos a sus tablas.
+
+Una modificación en WhatsApp o Vapi debe reflejarse al volver a resolver su referencia; no crea una segunda versión divergente dentro de la oficina.

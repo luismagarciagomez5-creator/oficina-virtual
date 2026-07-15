@@ -48,7 +48,7 @@ export default function PanelView({ state, agents, onSelectAgent }: Props) {
   return (
     <div className="h-full flex flex-col">
       <div className="px-6 pt-5 pb-3 border-b border-white/[0.06] shrink-0">
-        <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">Módulo ONYXLINK</div>
+        <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">Oficina Virtual</div>
         <h2 className="text-white font-semibold">Panel</h2>
         <p className="text-sm text-white/40 mt-0.5">Vista rápida del estado operativo de la oficina en tiempo real.</p>
       </div>

@@ -79,7 +79,7 @@ export default function MemoriaView({ state, onForgetItem }: Props) {
     <div className="h-full flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
       <div className="lg:w-72 shrink-0 lg:border-r border-white/[0.06] flex flex-col lg:h-full lg:overflow-hidden">
         <div className="px-5 pt-5 pb-3 border-b border-white/[0.06] shrink-0">
-          <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">Módulo ONYXLINK</div>
+          <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">Oficina Virtual</div>
           <h2 className="text-white font-semibold">Memoria</h2>
           <p className="text-xs text-white/40 mt-0.5">Lo que la oficina recuerda de cada contacto.</p>
         </div>

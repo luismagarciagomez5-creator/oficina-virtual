@@ -1,4 +1,5 @@
 import type { AgentId } from '../schemas';
+import type { OfficeSeatBinding } from './central-events/agent-bindings';
 import type { AgentRuntimeStatus } from './central-events/types';
 
 // Reuses the coordinator/Codex activity contract (src/central-events/types.ts)
@@ -30,6 +31,8 @@ export type Department = {
   color: string;
   status: AgentStatus;
   appearance: CharacterAppearance;
+  /** Which real SaaS seat this office role stands in for — see OFFICE_SEAT_BINDINGS. */
+  seat: OfficeSeatBinding;
 };
 
 // Kept as an alias so chat/hook code reads naturally ("the agent replied").

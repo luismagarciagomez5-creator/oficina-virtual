@@ -14,7 +14,7 @@ export const CENTRAL_EVENT_FIXTURES = {
     occurredAt: '2026-07-14T12:35:00.000Z',
     callId: 'call-001',
     phase: 'ended',
-    agentId: 'lead-intake',
+    agentId: 'strategy',
     payload: { durationSeconds: 183, endedReason: 'customer-ended-call' },
   },
   workflowBlocked: {
@@ -61,4 +61,3 @@ export const INVALID_CENTRAL_EVENT_FIXTURES = {
     phase: 'partial-transcript',
   },
 } as const;
-

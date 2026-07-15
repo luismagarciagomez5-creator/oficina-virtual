@@ -1,6 +1,7 @@
 import { AGENT_ORDER } from '../../agents/registry';
 import type { AgentId } from '../../schemas';
-import type { AgentActivitySnapshot } from '../central-events/types';
+import type { OfficeSeatBinding } from '../central-events/agent-bindings';
+import type { AgentActivitySnapshot, OfficeActivityEvent } from '../central-events/types';
 import { relativeTime } from '../lib/relativeTime';
 import { SOURCE_LABEL_ES, SOURCE_TW_TEXT, STATUS_LABEL_ES, STATUS_TW_BG } from '../lib/statusStyles';
 import type { Agent } from '../types';
@@ -10,16 +11,36 @@ type Props = {
   snapshots: Record<AgentId, AgentActivitySnapshot>;
   onOpenOffice: (id: string) => void;
   onOpenChat: (id: string) => void;
+  resolveContactId: (event: OfficeActivityEvent | null | undefined) => string | null;
+  onOpenContact: (contactId: string) => void;
 };
 
-export default function AgentesView({ agents, snapshots, onOpenOffice, onOpenChat }: Props) {
+// Honest about what's real today: no live connections yet, just which real
+// SaaS seat this office role stands in for. Driven by OFFICE_SEAT_BINDINGS
+// so it can't say more than the contract actually knows.
+function seatBadge(seat: OfficeSeatBinding): { label: string; className: string } | null {
+  if (seat.role === 'orchestrator') return null;
+  if (seat.configurable) {
+    return { label: 'Puesto configurable', className: 'text-violet-300/70 border-violet-400/25 bg-violet-500/[0.05]' };
+  }
+  if (seat.backendReady) {
+    const target = seat.role === 'whatsapp' ? 'WhatsApp' : seat.role === 'voice' ? 'Vapi' : 'el SaaS';
+    return {
+      label: `Listo para conectar a ${target}`,
+      className: 'text-emerald-300/70 border-emerald-500/25 bg-emerald-500/[0.05]',
+    };
+  }
+  return { label: 'Sin conexión real todavía', className: 'text-white/40 border-white/10 bg-white/[0.03]' };
+}
+
+export default function AgentesView({ agents, snapshots, onOpenOffice, onOpenChat, resolveContactId, onOpenContact }: Props) {
   const now = Date.now();
   const ordered = AGENT_ORDER.map((id) => agents.find((a) => a.id === id)).filter((a): a is Agent => Boolean(a));
 
   return (
     <div className="h-full flex flex-col">
       <div className="px-6 pt-5 pb-3 border-b border-white/[0.06] shrink-0">
-        <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">Módulo ONYXLINK</div>
+        <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">Oficina Virtual</div>
         <h2 className="text-white font-semibold">Agentes</h2>
         <p className="text-sm text-white/40 mt-0.5">El equipo completo — quién está haciendo qué, ahora mismo.</p>
       </div>
@@ -30,6 +51,8 @@ export default function AgentesView({ agents, snapshots, onOpenOffice, onOpenCha
             const snapshot = snapshots[agent.id];
             const event = snapshot?.event ?? null;
             const channelIsLive = snapshot ? snapshot.status !== 'available' && snapshot.status !== 'completed' : false;
+            const badge = seatBadge(agent.seat);
+            const contactId = resolveContactId(event);
 
             return (
               <div
@@ -52,6 +75,12 @@ export default function AgentesView({ agents, snapshots, onOpenOffice, onOpenCha
                     <div className="text-[10px] text-white/30 truncate">{agent.department}</div>
                   </div>
                 </div>
+
+                {badge && (
+                  <span className={`self-start text-[10px] font-medium px-2 py-0.5 rounded-full border ${badge.className}`}>
+                    {badge.label}
+                  </span>
+                )}
 
                 <p className="text-xs text-white/40 leading-relaxed line-clamp-2">{agent.description}</p>
 
@@ -84,7 +113,7 @@ export default function AgentesView({ agents, snapshots, onOpenOffice, onOpenCha
                   )}
                 </div>
 
-                <div className="flex gap-2 mt-auto pt-1">
+                <div className="flex flex-wrap gap-2 mt-auto pt-1">
                   <button
                     onClick={() => onOpenOffice(agent.id)}
                     className="onyx-control flex-1 text-xs font-medium text-white/80 px-3 py-2 transition-colors"
@@ -97,6 +126,14 @@ export default function AgentesView({ agents, snapshots, onOpenOffice, onOpenCha
                   >
                     Conversación
                   </button>
+                  {contactId && (
+                    <button
+                      onClick={() => onOpenContact(contactId)}
+                      className="w-full text-xs font-medium text-emerald-300/80 hover:text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/10 rounded-md px-3 py-2 transition-colors"
+                    >
+                      Ver contacto 360
+                    </button>
+                  )}
                 </div>
               </div>
             );

@@ -258,3 +258,453 @@ Validación de los tres bloques:
 - Verificado visualmente en escritorio y móvil (bypass temporal del login, revertido de inmediato) para las tres vistas: grids responsive, selección de contacto/agente sincronizada, flujo de "olvidar" con confirmación probado.
 
 Codex puede seguir ampliando `src/central-memory/` con normalidad — si añade un evento de borrado total de perfil, aviso y lo conecto en `MemoriaView`.
+
+## Dirección vinculante tras revisar el SaaS real
+
+Se revisó en modo lectura el repositorio público `luismagarciagomez5-creator/WhatsApp-saas`. Desde este punto, todo trabajo de Claude y Codex debe respetar estas decisiones:
+
+1. `WhatsApp-saas` será la única fuente de verdad. La oficina no duplicará workspaces, contactos, conversaciones, mensajes, llamadas, memoria, pipeline, integraciones ni credenciales.
+2. La migración final será una ruta administrativa `/central` o `/oficina-virtual` dentro del panel Next.js, usando sesión, workspace activo, RLS y servicios existentes.
+3. YCloud seguirá conectándose durante el alta del cliente en el panel actual. La oficina nunca mostrará un segundo asistente de conexión YCloud.
+4. La oficina se habilitará por workspace mediante un futuro flag `virtual_office_enabled`, controlado exclusivamente por superadministración de ONYXLINK y separado de los flags de WhatsApp, Vapi y memoria.
+5. Con el flag desactivado, ningún cliente verá navegación, ruta ni contenido de Oficina Virtual. Tras activarlo ONYXLINK, podrán acceder los administradores autorizados del workspace; ellos no podrán activar el add-on por sí mismos.
+6. El canvas no recibirá service role ni credenciales de proveedores.
+
+Asignación estable de los siete puestos sin renombrar `AgentId`:
+
+- `coordinator`: Orquestador.
+- `lead-intake`: Agente WhatsApp, conectado al único agente activo del workspace.
+- `strategy`: Agente de Voz, conectado a Vapi.
+- `proposal`, `operations`, `content`, `review-qa`: cuatro especialistas configurables.
+
+Realidad del backend que la UI debe comunicar honestamente:
+
+- el SaaS configura `setter`, `soporte` y `agendamiento`, pero solo uno puede estar activo por workspace;
+- esos tres modos pertenecen al mismo puesto WhatsApp y no son tres trabajadores simultáneos;
+- Vapi sí tiene un runtime separado y ocupa el puesto Voz;
+- un especialista configurable no puede aparecer trabajando hasta recibir un evento real que lo respalde;
+- la postura sentada continúa dependiendo exclusivamente de `status === 'working'`.
+
+Codex añadió `src/central-events/agent-bindings.ts` como capa de compatibilidad. Los adaptadores ahora enrutan WhatsApp a `lead-intake` y voz a `strategy` por defecto. Claude puede consumir `OFFICE_SEAT_BINDINGS` para actualizar nombres y textos visuales, pero no debe cambiar todavía `schemas/workflow.ts`, `AgentIdSchema` ni los runners del orquestador.
+
+Compatibilidad de memoria para la migración:
+
+- `contact_memories` del SaaS aporta resumen, intereses, preferencias, objeciones, estado y siguiente paso;
+- `contact_memory_items` aporta recuerdos atómicos y embeddings;
+- el modelo del prototipo añade origen, confianza, sensibilidad y tombstones que el esquema SaaS aún no persiste de forma equivalente;
+- no se hará una traducción con datos inventados: antes de migrar Memoria se ampliará el esquema SaaS o se definirá una proyección explícita para esos campos;
+- `item.forgotten` no se conectará a producción hasta disponer de una operación persistente y auditable en Supabase.
+
+Siguiente tarea recomendada para Claude:
+
+- adaptar únicamente nombres, departamentos y descripciones visuales mediante `OFFICE_SEAT_BINDINGS`;
+- mantener los cuatro especialistas actuales como valores iniciales configurables;
+- no tocar `src/central-events/` ni crear integraciones reales todavía.
+
+## Bloque de Claude: relabel visual de los tres puestos fijos
+
+Hecho, solo capa visual — cero cambios a `src/central-events/`, `schemas/workflow.ts`, `AgentIdSchema` ni a los runners del orquestador:
+
+- `src/agents.ts`: nuevo `SEAT_OVERRIDES` (department/role/description) para `coordinator` → Orquestador/Coordinación, `lead-intake` → Agente WhatsApp/WhatsApp, `strategy` → Agente de Voz/Voz. Las descripciones dicen explícitamente que representan al único agente activo del workspace (setter/soporte/agendamiento) y a Vapi — nada de "conectado" en presente, porque no hay conexión real todavía. `AGENT_META` en `agents/registry.ts` queda intacto: el override vive solo en la capa visual, así que el orquestador y sus prompts no ven ningún cambio.
+- Los cuatro especialistas (`proposal`, `operations`, `content`, `review-qa`) mantienen su nombre/departamento/rol/descripción actuales tal cual — no adopté "Especialista 1-4" como texto visible, porque `OFFICE_SEAT_BINDINGS` los marca `configurable: true` y esos labels son solo metadata interna del binding, no la identidad que se debe mostrar todavía.
+- `src/types.ts`: `Department` gana `seat: OfficeSeatBinding`, poblado en `src/agents.ts` desde `OFFICE_SEAT_BINDINGS[id]` — cada agente ahora carga su propio binding.
+- `src/components/AgentesView.tsx`: nueva etiqueta honesta por tarjeta, derivada de `seat.configurable`/`seat.backendReady`/`seat.role` (no hardcodeada por `agentId`): "Puesto configurable" para los cuatro especialistas, "Listo para conectar a WhatsApp/Vapi" para los dos puestos con `backendReady: true`, nada para el Orquestador.
+- Los nuevos labels se propagan solos a `ChatPanel` (header y "Canal de agente") y a los letreros 3D de `OfficeRoom`/`OfficeCanvas`, porque ambos ya leían `department`/`role`/`description` del mismo objeto `Agent` — no hizo falta tocarlos.
+
+Validación:
+
+- `npx tsc -b`: correcto.
+- `npm run lint`: limpio.
+- `npx vitest run`: 9 archivos, 45 pruebas, todo en verde.
+- Verificado visualmente en navegador (bypass temporal del login, revertido de inmediato): letreros de la oficina, tarjetas de Agentes y cabecera del ChatPanel muestran los nombres nuevos correctamente.
+
+Sigo sin tocar `src/central-events/` — vi que ya tienes `src/central-integrations/` y cambios en `adapters.ts`/`fixtures.ts` en curso; no los he revisado todavía, avísame cuando quieras que los consuma.
+
+## Bloque de Codex: provisionamiento seguro de Oficina Virtual
+
+Codex creó `src/central-integrations/` como contrato puro para decidir si un workspace está preparado para recibir Oficina Virtual. No llama a Supabase, no contiene credenciales y no modifica la UI.
+
+Requisitos de activación definidos:
+
+- exactamente un agente WhatsApp activo;
+- YCloud configurado, habilitado y saludable;
+- Vapi configurado, saludable y con `assistantId`;
+- memoria avanzada;
+- memoria compartida entre canales;
+- pipeline inteligente;
+- recuperación de leads fríos.
+
+`selectOfficeProvisioningReadiness` diferencia cuatro estados:
+
+- `not_ready`: faltan requisitos;
+- `ready_to_enable`: todos los requisitos están listos, pero superadministración todavía no activó la oficina;
+- `active`: requisitos listos y `virtualOfficeEnabled === true`;
+- `misconfigured`: el flag se activó aunque faltan requisitos. En este estado el acceso continúa bloqueado.
+
+El contrato expone únicamente salud, flags e identificadores técnicos necesarios. Rechaza campos desconocidos para impedir que API keys, secretos o tokens entren accidentalmente en el frontend.
+
+Propiedad y siguiente integración:
+
+- Codex mantiene `src/central-integrations/` y `tests/central-integrations.test.ts`.
+- Claude no debe conectar este módulo a `App.tsx` ni crear una vista de Integraciones ahora.
+- Durante la migración, el panel de agencia construirá `WorkspaceCapabilitySnapshot` desde columnas y configuraciones reales del workspace.
+- La decisión final de activar `virtual_office_enabled` pertenecerá a superadministración; este módulo solo calcula preparación y acceso.
+
+Regla de visibilidad confirmada por producto:
+
+- `virtual_office_enabled` nace en `false` para todo workspace;
+- solo el superadministrador de ONYXLINK puede cambiarlo;
+- el flag se administra como memoria avanzada, memoria compartida y recuperación de leads fríos;
+- si está en `false`, Oficina Virtual no aparece para ningún usuario del cliente aunque todos los requisitos técnicos estén listos;
+- si está en `true` y los requisitos siguen listos, aparece para los administradores autorizados del workspace;
+- si está en `true` pero falta un requisito, el estado es `misconfigured` y la oficina permanece oculta y bloqueada.
+
+El contrato exporta `VIRTUAL_OFFICE_ACTIVATION_POLICY` y `visibleToWorkspace` para que esta regla no dependa de interpretación visual.
+
+## Bloque de Codex: adaptador de filas reales del SaaS
+
+Codex añadió `src/central-integrations/saas-adapter.ts` para construir `WorkspaceCapabilitySnapshot` desde datos sanitizados del panel real:
+
+- fila de `workspaces` con los flags de producto;
+- única fila activa de `agents`;
+- estado habilitado de la integración YCloud;
+- señales de salud de YCloud y Vapi;
+- `vapi_assistant_id` y fecha de captura.
+
+El adaptador no acepta `credentials`, API keys, secretos, tokens, payloads de webhook ni clientes Supabase. Si `virtual_office_enabled` todavía no existe, llega como `undefined` o `null` y se interpreta obligatoriamente como `false`. Una fila de agente con `is_active === false` tampoco cuenta como agente disponible.
+
+Este es el punto de conexión futuro para el panel de agencia. Claude no necesita consumirlo en el prototipo actual.
+
+Validación del adaptador y revisión conjunta del relabel visual de Claude:
+
+- `npx tsc -b`: correcto.
+- `npm run lint`: limpio.
+- `npm test`: 9 archivos y 47 pruebas aprobadas.
+
+Validación conjunta:
+
+- `npx tsc -b`: correcto.
+- `npm run lint`: limpio.
+- `npm test`: 9 archivos y 44 pruebas aprobadas.
+
+## Bloque de Codex: Contacto 360 multicanal
+
+Codex creó `src/central-contacts/` como proyección pura de solo lectura basada en el esquema real de `WhatsApp-saas`:
+
+- `contacts` aporta identidad, origen, etapa, tags y opt-in;
+- `conversations` y el último `messages` aportan estado WhatsApp, IA/handoff, ventana, no leídos y vista previa;
+- `voice_calls` aporta la última llamada, resumen, duración y resultado;
+- `contact_memories` aporta resumen, intereses, preferencias, objeciones y siguiente paso;
+- `deals` aporta oportunidad, fase, valor y cierre esperado;
+- tareas aporta el contador pendiente.
+
+Reglas del contrato:
+
+- la unión siempre ocurre por el mismo `workspace_id` y `contact_id`;
+- cualquier fila de otro workspace o contacto se rechaza;
+- teléfono y correo se enmascaran antes de llegar a las vistas;
+- no se conservan teléfono ni email sin máscara en `Contact360`;
+- WhatsApp y voz aparecen como dos canales del mismo contacto;
+- handoff, mensaje fallido y tareas pendientes generan motivos de atención;
+- la proyección no escribe en Supabase ni sustituye las tablas reales.
+
+Punto de integración para Claude:
+
+- puede crear un hook mock usando `createSaasContact360Fixture()` y `adaptSaasContact360()`;
+- la vista debe consumir `Contact360`, no las filas snake_case del SaaS;
+- no debe añadir fetch, Supabase ni operaciones reales todavía;
+- el panel contextual puede abrirse desde el puesto WhatsApp, Voz o una actividad, pero ambos deben resolver el mismo `contactId`.
+
+Validación:
+
+- `npx tsc -b`: correcto.
+- `npm run lint`: limpio.
+- `npm test`: 10 archivos y 52 pruebas aprobadas.
+
+## Bloque de Claude: vista Contactos + Contacto 360
+
+Hecho, consumiendo `Contact360` directamente — nada de filas snake_case en las vistas, cero cambios a `src/central-contacts/`:
+
+- `src/hooks/useContact360Feed.ts` (nuevo): siembra con `adaptSaasContact360(createSaasContact360Fixture())`. Como solo hay una fixture real hoy, la lista muestra un único contacto (Lucía) — no inventé contactos adicionales para rellenar la lista, mismo criterio de "no traducir con datos inventados" que ya está en este documento.
+- Empecé construyendo esto contra un mock propio (objeciones/preferencias/necesidades sacadas de `central-memory`) antes de ver que `src/central-contacts/` ya existía. En cuanto apareció lo descarté entero y reconstruí contra tu contrato real — `Contact360.memory` no tiene "necesidades", así que el panel muestra "Intereses" (tu campo real) en su lugar; no inventé un campo que el contrato no tiene.
+- `src/components/Contact360Panel.tsx` (nuevo): modal con nombre + teléfono/email enmascarados, etapa + oportunidad, última conversación de WhatsApp (preview, estado, no leídos), última llamada de voz (resumen, duración, motivo de fin), memoria compartida, objeciones/preferencias/intereses, próximo paso (`nextAction`) y una sección de alertas/handoff/tareas que lee `attentionReasons` y `pendingTasks` tal cual los expone el adaptador.
+- `src/components/ContactosView.tsx` (nuevo) + `ViewId: 'contactos'` en `Sidebar.tsx`: lista buscable usando tu `selectContact360List` directamente, sin reimplementar el filtro.
+- Los dos puntos de entrada contextual: `AgentesView` (botón "Ver contacto 360" en cualquier puesto cuya actividad actual resuelva a un contacto — no lo restringí solo a WhatsApp/Voz porque el resolutor ya es honesto por sí mismo: solo resuelve si `entityId` apunta a un contacto real) y `ActividadView` (botón "Ver contacto" por fila). Ambos resuelven el mismo `contactId` mediante `resolveContactIdFromEvent`, una tabla local en `useContact360Feed.ts` que enlaza los `entityId` del mock feed de `central-events` (`contact-001`, `conversation-001`, `voice-call-001`, `deal-001`) con `contact-lucia` — vive en mi hook, no toca `central-events` ni `central-contacts`.
+- `src/lib/leadStatusStyles.ts` (nuevo): paleta de `ContactStage` compartida entre la lista y el panel.
+
+Validación:
+
+- `npx tsc -b`: correcto.
+- `npm run lint`: limpio.
+- `npx vitest run`: 10 archivos, 52 pruebas, todo en verde.
+- Verificado visualmente en escritorio y móvil (bypass temporal del login, revertido de inmediato): lista de Contactos, panel completo con datos reales de la fixture, ambos puntos de entrada contextual, y el panel se apila a una columna en móvil sin cortes.
+
+Cuando añadas más fixtures o el resto de campos, aviso y lo reconecto — de momento la lista de Contactos queda honesta con un solo contacto real.
+
+## Bloque de Claude: interfaz de Activación administrativa
+
+Hecho, consumiendo tu contrato de `src/central-integrations/` sin tocarlo:
+
+- `src/hooks/useOfficeActivation.ts` (nuevo): siembra con tus fixtures (`createReadyWorkspaceFixture`, `createIncompleteWorkspaceFixture`) y deriva `readiness` con `selectOfficeProvisioningReadiness`. Expone un selector de "escenario de datos (solo demo)" para poder ver los cuatro estados (`not_ready`/`ready_to_enable`/`active`/`misconfigured`) sin depender todavía de un workspace real. `activate`/`deactivate` solo mueven `virtualOfficeEnabled` en memoria local y anotan `{ type, actorEmail, at }` en `lastAction` — dejo explícito en el código que esto **no** es el registro de auditoría durable (quién activó, cuándo, errores) que planeas construir; es solo lo mínimo para que el switch sea interactivo en el prototipo.
+- `src/components/ActivacionView.tsx` (nuevo): switch, badge de los 4 estados (`src/lib/officeActivationStyles.ts`, mismo patrón que `statusStyles.ts`), checklist de los 7 requisitos con motivo cuando falta uno, panel de error listando exactamente qué requisitos rompen el estado `misconfigured`, y el selector de escenario de demo.
+- `src/components/Sidebar.tsx` + `src/App.tsx`: nuevo `ViewId: 'activacion'`, item de navegación que **no se renderiza en absoluto** salvo que `isSuperAdmin` sea verdadero (no es solo un disabled — el item desaparece del DOM, igual que pide la política de `VIRTUAL_OFFICE_ACTIVATION_POLICY`). Como todavía no existe un sistema de roles real en este prototipo, añadí un toggle "Rol (demo): Superadmin ONYXLINK / Cliente" al pie del sidebar, marcado explícitamente en el código como placeholder de tu chequeo de rol real — en cuanto exista, ese booleano se reemplaza por la sesión/rol reales y el toggle desaparece. Si se cambia a "Cliente" mientras la vista activa es Activación, `App.tsx` regresa a Oficina para no dejar una ruta fantasma.
+- No toqué `src/central-integrations/` ni construí ninguna lógica de permisos/auditoría — eso sigue siendo tuyo.
+
+Validación:
+
+- `npx tsc -b`: correcto.
+- `npm run lint`: limpio.
+- `npx vitest run`: 10 archivos, 59 pruebas, todo en verde.
+- `npm run build`: correcto (mismo aviso informativo de tamaño de bundle).
+- Verificado visualmente con Playwright (instalado temporalmente, desinstalado al terminar) sobre el bypass temporal de login habitual, revertido de inmediato: los 4 escenarios de estado renderizan bien, el switch activa/desactiva correctamente, y el item "Activación" desaparece del sidebar al cambiar el rol de demo a "Cliente" sin dejar rastro en el DOM.
+
+Siguiente paso natural cuando tengas el modelo de permisos y el registro de auditoría: reemplazar `isSuperAdmin`/`useOfficeActivation`'s mock local por la sesión real y tu endpoint de activación — la vista y el hook ya están escritos contra tu contrato, así que el cambio debería ser solo de cableado.
+
+## Bloque de Codex: autorización administrativa de Oficina Virtual
+
+Codex amplió `src/central-integrations/` sin tocar componentes ni hooks de Claude:
+
+- `access.ts`: `selectVirtualOfficeAccess(snapshot, viewer)` oculta la oficina a miembros normales, administradores de otro workspace y administradores del cliente mientras el add-on no esté activo y saludable. El superadministrador ONYXLINK conserva acceso a su consola de gestión.
+- `activation.ts`: `decideVirtualOfficeActivation(snapshot, request)` es el contrato puro que debe consumir la interfaz. Solo acepta `onyxlink_super_admin`, comprueba el workspace, evita escrituras obsoletas mediante `expectedEnabled`, bloquea activaciones sin requisitos y permite desactivar una oficina mal configurada.
+- `types.ts`: incorpora actores, solicitudes, decisiones y `OfficeActivationAuditRecord`. Una operación aprobada devuelve el registro auditable, pero esta capa no escribe todavía en Supabase.
+
+Punto de integración para Claude:
+
+- el interruptor debe usar la decisión devuelta por `decideVirtualOfficeActivation`;
+- mostrar los bloqueos existentes de `selectOfficeProvisioningReadiness`;
+- no replicar permisos ni requisitos dentro del componente;
+- en esta fase mock, aplicar `nextEnabled` al estado local solo cuando `allowed === true`;
+- conservar `auditRecord` para la futura persistencia administrativa.
+
+Validación: TypeScript y lint correctos; 10 archivos y 56 pruebas aprobadas.
+
+## Decisión de producto: plantilla inicial por cliente
+
+La Oficina Virtual no se diseña desde cero durante cada alta. Cuando un cliente solicita el add-on, ONYXLINK parte siempre de una plantilla versionada y después adapta únicamente la instancia de ese workspace.
+
+Codex añadió `src/central-integrations/preset.ts`:
+
+- `ONYXLINK_STANDARD_OFFICE_PRESET` versión `1.0.0` define siete puestos: orquestador, WhatsApp, voz y cuatro especialistas;
+- `provisionWorkspaceOffice(workspaceId, provisionedAt)` crea una copia independiente para el cliente y conserva `presetId` y `presetVersion`;
+- `customizeWorkspaceOffice(configuration, request)` permite adaptar nombre de la oficina, nombres visibles y objetivos de los cuatro especialistas;
+- orquestador, WhatsApp y voz son puestos protegidos: sus identificadores y conexiones técnicas no se renombran ni sustituyen mediante personalización;
+- una personalización de otro workspace se rechaza y nunca modifica la plantilla compartida.
+
+Flujo que debe representar la interfaz administrativa:
+
+1. Revisar requisitos del workspace.
+2. Crear la oficina desde la plantilla estándar.
+3. Adaptar opcionalmente los cuatro especialistas a las necesidades del cliente.
+4. Confirmar la activación como superadministrador ONYXLINK.
+
+El cliente puede solicitar o definir necesidades, pero no activa directamente el add-on. Validación del contrato: TypeScript correcto y 59 pruebas aprobadas. Durante la ejecución de lint aparecieron avisos temporales en `src/auth/AuthGate.tsx`, archivo que Claude estaba usando para su prueba visual; Codex no lo modificó.
+
+## Bloque de Codex: vínculo WhatsApp propio de cada workspace
+
+Codex añadió `src/central-integrations/whatsapp-binding.ts` para separar la plantilla compartida de la conexión real de cada cliente:
+
+- `resolveWorkspaceWhatsAppBinding(snapshot, connection)` enlaza siempre el puesto técnico `lead-intake` con la conexión YCloud y el agente WhatsApp activo del mismo `workspaceId`;
+- el resultado solo expone `connectionId`, proveedor, número enmascarado, tipo e identificador del agente activo;
+- el teléfono sin máscara nunca forma parte de `WorkspaceWhatsAppBinding` y las credenciales no están aceptadas por el contrato;
+- una conexión de otro workspace se rechaza sin devolver identificadores, teléfono ni agente;
+- distingue `ready`, `not_connected`, `number_missing`, `integration_unhealthy`, `agent_inactive` y `workspace_mismatch`;
+- el vínculo se deriva en cada lectura: si el cliente cambia su número YCloud, se actualiza la proyección sin reprovisionar la oficina.
+
+Pendientes concretos para el hook/UI de Claude:
+
+- `useOfficeActivation.activate/deactivate` todavía cambia el booleano directamente; debe llamar a `decideVirtualOfficeActivation` y conservar el `auditRecord` devuelto;
+- crear una conexión YCloud mock del mismo workspace, resolverla con `resolveWorkspaceWhatsAppBinding` y mostrar número enmascarado, agente activo y estado en la vista de Activación;
+- no mostrar nunca el teléfono completo ni construir permisos dentro del componente.
+
+Validación conjunta: TypeScript y lint correctos; 10 archivos y 63 pruebas aprobadas.
+
+## Bloque de Claude: vínculo WhatsApp real en el activador
+
+Hecho los tres pendientes que dejaste, consumiendo `activation.ts` y `whatsapp-binding.ts` sin tocarlos:
+
+- `src/hooks/useOfficeActivation.ts` (reescrito): `activate`/`deactivate` ya no mueven el booleano directamente — construyen un `OfficeActivationRequest` real (`requestId` vía `crypto.randomUUID()`, `expectedEnabled` desde el snapshot actual, `actor` con el rol de demo) y llaman a `decideVirtualOfficeActivation`. El hook solo aplica `nextEnabled` cuando `allowed === true` y guarda la `OfficeActivationDecision` completa en `lastDecision` — cero requisitos ni permisos reimplementados aquí, tal como pediste.
+- Conexión YCloud mock: como todavía no existe una fixture tuya para `WorkspaceWhatsAppConnectionInput`, construí una mínima dentro del hook (`buildMockConnection`) que deriva `health` y si hay número del propio `snapshot.ycloud`, con un teléfono sintético que nunca sale de la función sin pasar por `resolveWorkspaceWhatsAppBinding`. Se resuelve con tu función en cada cambio de snapshot, así que los 4 escenarios de demo ya producen bindings distintos (`ready` cuando YCloud está sano, `integration_unhealthy` cuando no) sin que yo inventara esa lógica.
+- `src/components/ActivacionView.tsx`: nueva tarjeta "Vínculo con WhatsApp" con el badge de `whatsappBinding.state` (reutilicé tus 6 estados tal cual, ninguno reinterpretado), puesto vinculado (nombre real del agente `lead-intake` desde `agents.ts`), número enmascarado o "No disponible", tipo de agente activo y salud de YCloud. El teléfono completo nunca llega al componente — solo lo que expone `WorkspaceWhatsAppBinding`.
+- El switch ya no calcula `canToggle` a partir de `readiness.state` (eso era yo replicando tu lógica) — ahora siempre dispara `activate`/`deactivate` y deja que `decideVirtualOfficeActivation` decida; si la decisión llega rechazada, muestro el motivo (`unauthorized`, `stale_state`, `prerequisites_not_met`, etc.) tal cual el `code` que devuelves.
+- El toggle de rol de demo en el sidebar ahora alimenta el mismo `OfficeViewer.role` que se envía en la solicitud de activación (`onyxlink_super_admin` / `workspace_admin`) — un solo mock de "quién soy", no dos separados.
+- Nuevos `src/lib/integrationHealthStyles.ts` y `src/lib/whatsappBindingStyles.ts` (mismo patrón que `statusStyles.ts`) para las etiquetas y colores en español de `IntegrationHealth`, `WhatsAppAgentType` y `WorkspaceWhatsAppBindingState`.
+
+Validación:
+
+- `npx tsc -b`: correcto.
+- `npm run lint`: limpio.
+- `npx vitest run`: 10 archivos, 63 pruebas, todo en verde.
+- `npm run build`: correcto (mismo aviso informativo de bundle).
+- Verificado visualmente con Playwright (instalado y desinstalado solo para la verificación) sobre el bypass temporal de login habitual, revertido de inmediato: activación real con registro de auditoría visible ("Activada por... · ahora mismo"), badge "YCloud con problemas" + "No disponible" + "Sin agente activo" en el escenario sin requisitos, y el mensaje de rechazo "Faltan requisitos técnicos para poder activarla" al intentar activar sin que los requisitos estén listos.
+
+Cuando publiques una fixture real de `WorkspaceWhatsAppConnectionInput`, aviso y reemplazo `buildMockConnection` por ella — el resto del cableado ya está contra tu contrato real, así que debería ser solo cambiar la fuente del dato.
+
+## Bloque de Claude: configurador visual de la plantilla
+
+Al empezar este bloque encontré que ya habías subido `src/central-integrations/configuration.ts` (y `tests/central-office-configuration.test.ts`) mientras yo seguía trabajando — lo leí completo antes de tocar nada y construí directamente contra ese contrato, sin el modelo local que había empezado a improvisar (booleana de aprobación, 4 acciones inventadas). Tu `OfficeSpecialistConfiguration`, `OFFICE_SPECIALIST_ACTIONS` (8 acciones), `OfficeApprovalPolicy` de 3 valores, revisiones y `applyOfficeConfigurationCommand` cubrían exactamente lo que pedía el producto (Nombre, Función, Objetivo, Instrucciones, Acciones permitidas, Aprobación humana), así que no inventé nada de eso.
+
+- `src/hooks/useOfficeConfigurator.ts` (nuevo): siembra con `provisionWorkspaceOffice` + `createOfficeConfigurationState`. Mantiene drafts locales de texto (nombre de oficina + los 4 especialistas) para que escribir no dispare un comando por tecla; `save()` compara cada draft contra `state.current` y solo despacha `update_office`/`update_specialist` para lo que cambió, encadenando `expectedRevision` en cada paso. `resetSpecialistDraft` despacha `reset_specialist` de inmediato (acción discreta, no texto en vivo) y `publish()` despacha `publish`. Ningún comando se construye con datos inventados — todo pasa por `applyOfficeConfigurationCommand`.
+- `src/components/ConfiguradorView.tsx` (nuevo): versión y estado (borrador/publicada) de la plantilla, revisión + quién/cuándo actualizó por última vez, los tres puestos protegidos como tarjetas de solo lectura, tarjetas de especialista con los 6 campos (acciones como píldoras multi-selección de tus 8 valores reales, aprobación como selector de tus 3 políticas reales), botón "Restablecer" por especialista, banner de error mostrando `issues` de campo cuando `invalid_configuration`, y "Vista previa" que muestra el borrador completo (nombre + puestos protegidos + los 4 especialistas con todos sus campos) antes de "Publicar".
+- `src/lib/officeConfiguratorStyles.ts` (nuevo): etiquetas en español de `OfficeSpecialistAction`, `OfficeApprovalPolicy`, `OfficeConfigurationStatus` y los códigos de error de `OfficeConfigurationMutationResult` — mismo patrón que `statusStyles.ts`.
+- `src/components/Sidebar.tsx` + `src/App.tsx`: nuevo `ViewId: 'configurador'`, gateado por el mismo `isSuperAdmin` de demo que "Activación" (generalicé `SUPER_ADMIN_NAV_ITEM` a `SUPER_ADMIN_NAV_ITEMS`). Workspace fijo de demo (`workspace-demo`) porque el módulo todavía no tiene selector de workspace real.
+
+Validación:
+
+- `npx tsc -b`: correcto.
+- `npm run lint`: limpio.
+- `npx vitest run`: 11 archivos, 68 pruebas, todo en verde (incluye tu `central-office-configuration.test.ts`).
+- `npm run build`: correcto (mismo aviso informativo de bundle).
+- Verificado visualmente con Playwright (instalado y desinstalado solo para la verificación) sobre el bypass temporal de login habitual, revertido de inmediato: edité nombre + campos de un especialista, vi el banner "Cambios guardados para este workspace" y la revisión subir de 1 a 5 conforme guardaba/publicaba/restablecía, la vista previa reflejando exactamente los cambios en borrador, y "Restablecer" devolviendo ese especialista a sus valores originales sin tocar los demás ni el nombre de la oficina.
+
+No toqué `src/central-integrations/configuration.ts` ni `preset.ts`. Cuando conectes un selector de workspace real, el único cambio de mi lado debería ser pasar ese `workspaceId` en vez de la constante de demo.
+
+## Cierre conjunto del configurador y propiedad de prompts
+
+Revisión de Codex tras terminar la interfaz:
+
+- se añadió `src/central-integrations/prompt-ownership.ts` como fuente única para saber dónde vive cada prompt;
+- `lead-intake` pertenece a `whatsapp_panel`, no es editable en Oficina Virtual y se enlaza por `activeWhatsappAgentId`;
+- `strategy` pertenece a `vapi`, no es editable en Oficina Virtual y se enlaza por `vapiAssistantId`;
+- Orquestador y especialistas pertenecen a `office_configuration`;
+- las tarjetas protegidas del configurador indican ahora la fuente real en lugar de sugerir que existe otro prompt local;
+- se corrigió `publish()` en `useOfficeConfigurator`: primero guarda y valida los drafts pendientes y después publica la revisión resultante. Así la vista previa y la configuración publicada no pueden divergir al pulsar Publicar sin Guardar previamente.
+
+Validación conjunta: TypeScript y lint correctos; 11 archivos y 69 pruebas aprobadas; build de producción correcto con el aviso informativo ya conocido sobre tamaño del chunk principal.
+
+## Bloque de Codex: Bandeja Multicanal simulada
+
+Codex añadió `src/central-inbox/` sin tocar componentes, hooks ni navegación de Claude:
+
+- `types.ts`: `InboxThread`, timeline discriminado de mensajes/llamadas, estados, prioridad, filtros y contadores;
+- `adapter.ts`: `projectInboxThread(input)` une WhatsApp y Voz exclusivamente por el mismo `workspaceId`, `contactId` y `conversationId`;
+- `selectors.ts`: `selectInboxThreads`, `selectInboxThread` y `selectInboxStats` para búsqueda, canal, estado, prioridad, responsable, no leídos, atención y orden;
+- `fixtures.ts`: una proyección simulada coherente con la fixture real existente de Lucía en `central-contacts`;
+- `tests/central-inbox.test.ts`: aislamiento multi-tenant, timeline, prioridad, handoff, filtros, contadores, deduplicación y privacidad.
+
+Reglas del contrato:
+
+- la bandeja es de solo lectura en esta fase; no envía mensajes ni inicia llamadas;
+- WhatsApp conserva `conversationId` y Voz conserva `callId`, pero ambos aparecen bajo el mismo contacto;
+- handoff pendiente asigna la conversación al Orquestador; en el resto de casos responde el puesto del canal más reciente;
+- mensajes fallidos o handoff son urgentes; no leídos o tareas pendientes tienen prioridad alta;
+- la proyección expone solo `phoneMasked` procedente de `Contact360`, nunca el teléfono real ni payloads del proveedor;
+- filas repetidas del proveedor se deduplican por tipo e identificador.
+
+Punto de integración para Claude:
+
+- crear un hook adaptador con `createInboxProjectionFixture()` + `projectInboxThread()`;
+- las vistas deben consumir `InboxThread` y los selectores exportados, no reconstruir prioridad, responsable o filtros;
+- abrir Contacto 360 usando `thread.contactId`;
+- cualquier botón de enviar, llamar o cambiar CRM debe quedar ausente o marcado como simulación sin efecto real.
+
+Validación aislada: TypeScript correcto, lint limpio y 6 pruebas aprobadas.
+
+## Bloque de Claude: bandeja visual, filtros y detalle de conversación
+
+Empecé este bloque sin `src/central-inbox/` todavía visible, así que construí un primer hook propio sobre `Contact360` + el timeline de `central-events` (prioridad y "mensajes simulados" inventados por mí). En cuanto apareció tu `src/central-inbox/` lo descarté por completo y reconstruí contra tu contrato real — tu `InboxThread` ya traía timeline combinado de mensajes/llamadas, prioridad de 4 niveles, estado del hilo y responsable derivado (incluido el caso de handoff → Orquestador), así que no quedó nada de mi versión anterior salvo la idea de un borrador local de respuesta.
+
+- `src/hooks/useInboxFeed.ts` (reescrito): siembra con `projectInboxThread(createInboxProjectionFixture())` y usa `selectInboxThreads`/`selectInboxStats` directamente — no reimplementa prioridad, responsable ni filtros, tal como pedías. Como solo existe una fixture real (Lucía), la bandeja muestra una sola conversación — mismo criterio de "no inventar contactos" que ya está en `useContact360Feed.ts`. Lo único que vive aquí y en ningún otro lado es `draftsByContact`: borradores de respuesta escritos en la UI que nunca entran a `thread.timeline` ni se envían a ninguna parte — solo estado de sesión, consistente con "las acciones aparecerán como simulaciones o borradores sujetos a aprobación".
+- `src/components/BandejaView.tsx` (nuevo): lista con filtros (canal, estado, agente responsable, prioridad, búsqueda) sobre `selectInboxThreads`; detalle con hilo de mensajes de WhatsApp (bandera "simulado" visible en el título de sección), tarjeta de llamada de voz (duración/resumen/motivo de fin), timeline conjunto combinando mensajes y llamadas, memoria compartida + etapa, agente responsable, alertas/handoff, siguiente acción y contador de tareas pendientes. Botón "Ver Contacto 360" abre el panel existente con `thread.contactId` — reutilizado tal cual, sin duplicar lógica.
+- Adaptación móvil: por debajo de `sm:`, la lista y el detalle nunca se muestran a la vez — seleccionar una conversación oculta la lista y muestra un botón "← Volver a la bandeja"; por encima de `sm:` se ven ambas columnas. Encontré y corregí en el mismo pase un desbordamiento del botón "Ver Contacto 360" en móvil (el header ahora apila verticalmente por debajo de `sm:`).
+- `src/lib/conversationStateStyles.ts` ganó `INBOX_STATUS_LABEL_ES`/`TW` e `INBOX_PRIORITY_LABEL_ES`/`TW` para tus tipos reales, y extraje `ATTENTION_REASON_LABEL_ES` (antes vivía solo dentro de `Contact360Panel.tsx`) para que `BandejaView` no dupli que las etiquetas de `attentionReasons` — `Contact360Panel` ahora importa ambos mapas en vez de definirlos localmente.
+- `src/components/Sidebar.tsx` + `src/App.tsx`: nuevo `ViewId: 'bandeja'` como item de navegación normal (visible para cualquier usuario, no gateado por `isSuperAdmin` — a diferencia de Activación/Configurador, la bandeja es operativa para el cliente, no administración ONYXLINK).
+
+Validación:
+
+- `npx tsc -b`: correcto.
+- `npm run lint`: limpio.
+- `npx vitest run`: 12 archivos, 75 pruebas, todo en verde.
+- `npm run build`: correcto (mismo aviso informativo de bundle).
+- Verificado visualmente con Playwright (instalado y desinstalado solo para la verificación) sobre el bypass temporal de login habitual, revertido de inmediato: filtros por canal/estado/agente/prioridad, timeline conjunto con mensaje+llamada en orden correcto, borrador de respuesta añadido sin tocar el timeline real, y el flujo móvil completo (lista → detalle → volver) sin cortes tras el fix del header.
+
+No toqué `src/central-inbox/`. Ningún botón de esta vista envía mensajes, inicia llamadas ni cambia CRM — el único "envío" posible es un borrador local marcado "sujeto a aprobación, no se envía".
+
+## Bloque de Claude: previsualización visual y color por especialista en el Configurador
+
+Luis pidió conectar la oficina 3D con el configurador. Entendí mi parte del reparto como estrictamente la del Configurador (previsualización + controles de personalización) — no toqué `src/agents.ts`, `App.tsx` (la vista "oficina") ni ningún archivo de `src/three/`, porque el adaptador que lee `OfficeConfigurationDocument` y produce los agentes reales de la escena 3D es tuyo ("adaptador entre configuración, workspace y agentes de la escena 3D").
+
+- `src/hooks/useOfficeConfigurator.ts`: nuevo `specialistColors` (+ `setSpecialistColor`) para los 4 especialistas. Deliberadamente **no** pasa por `applyOfficeConfigurationCommand` — el color es un dato puramente visual/cosmético, mismo criterio que ya usa `agents.ts` para separar `VISUAL` (color, apariencia) de `AGENT_META` (identidad real). No necesita permisos, revisión ni auditoría como sí necesitan nombre/función/instrucciones. Se siembra desde el color original de `agents.ts` (`staticOfficeAgents.find(a => a.id === agentId)?.color`) y `resetSpecialistDraft` también lo restablece, para que "Restablecer" quede completo.
+- `src/components/ConfiguradorView.tsx`: color picker nativo junto al campo Nombre de cada especialista; las tarjetas (protegidas y especialistas) ahora tienen un borde izquierdo del color real de ese puesto — reutilizo el color de `agents.ts` para los tres puestos fijos (nunca editable, solo de lectura) y el color local del hook para los 4 especialistas. La "Vista previa" dejó de ser una lista de texto y ahora es una cuadrícula de 7 tarjetas (mismo orden que la oficina) con el color, nombre/etiqueta y función de cada puesto — pensada para acercarse a cómo se vería la oficina real una vez que conectes tu adaptador.
+- Si decides que el color también debería vivir en tu contrato (por ejemplo, si el cliente necesita ver el mismo color entre sesiones/dispositivos vía backend en vez de solo en memoria del navegador), avísame — hoy es intencionalmente solo mío para no bloquear este bloque en una extensión de `OfficeSpecialistConfiguration`.
+
+Validación:
+
+- `npx tsc -b`: correcto.
+- `npm run lint`: limpio.
+- `npx vitest run`: 13 archivos, 78 pruebas, todo en verde.
+- `npm run build`: correcto (mismo aviso informativo de bundle).
+- Verificado visualmente con Playwright (instalado y desinstalado solo para la verificación): el picker de color cambia el borde de la tarjeta en tiempo real, y la vista previa en cuadrícula muestra los 7 puestos con sus colores correctos (incluidos los fijos, en modo lectura).
+
+Quedo a la espera de tu adaptador para que la vista "Oficina" lea `officeDisplayName` + los 4 especialistas configurados de un workspace real en vez de los valores estáticos de `agents.ts` — en cuanto lo publiques, conecto `specialistColors` igual que conecté antes `whatsapp-binding` y `configuration`.
+
+Nota aparte: vi que ya subiste `previewOfficeAgents`/`projectPublishedOfficeAgents` (+ `tests/central-office-agent-projection.test.ts`) — es justo el adaptador que esperaba. Todavía no lo conecté a `agents.ts`/`App.tsx` porque Luis me pidió pasar a Tareas antes; lo hago en el próximo bloque salvo que me digas otra cosa.
+
+## Bloque de Claude: TareasView + useTaskFeed (datos simulados)
+
+`src/central-tasks/` todavía no existe en el repo, así que este bloque es enteramente mío como placeholder — diseñado para que la vista cambie poco cuando publiques el modelo real.
+
+- `src/hooks/useTaskFeed.ts` (nuevo): tipos `Task`/`TaskStatus` (`pending/assigned/in_progress/approval_required/blocked/completed/cancelled`)/`TaskPriority` (`urgent/high/normal/low`, mismo vocabulario que ya usa `central-inbox` para consistencia) y un reducer local con `createTask`, `updateTask`, `assignTask`, `startTask`, `requestApproval`, `approveTask`, `rejectTask`, `resumeTask`, `completeTask`, `blockTask`, `cancelTask` — cada uno añade una entrada a `history` (acción, actor, fecha, nota). `TASK_TRANSITIONS` mapea qué acciones son válidas desde cada estado; la vista nunca decide eso por su cuenta, lee ese mapa. 5 tareas de fixture, referenciando el único contacto real (`contact-lucia`) donde corresponde — mismo criterio de "no inventar contactos" que ya está en `useContact360Feed.ts`. `loading` se simula con 300ms para poder construir el estado de carga ya mismo.
+- `src/components/TareasView.tsx` (nuevo): buscador + filtros (agente, prioridad, estado, canal), toggle Lista/Tablero (tablero con las 7 columnas de estado, scroll horizontal en móvil), formulario modal de crear/editar (valida título obligatorio), panel de detalle modal con historial completo, contacto relacionado (botón a Contacto 360 real) y los botones de acción exactos que pide `TASK_TRANSITIONS` para el estado actual — nunca todos los botones a la vez. Estados vacíos (diferente mensaje si no hay tareas vs. si los filtros no matchean nada) y estado de carga (skeleton) cubiertos.
+- `src/components/Sidebar.tsx` + `src/App.tsx`: nuevo `ViewId: 'tareas'`, ítem de navegación normal (visible para cualquier usuario, igual que Bandeja/Contactos — no es administración ONYXLINK).
+
+Cuando publiques `src/central-tasks/` (modelo, reducer, aprobaciones, auditoría, aislamiento), reconstruyo `useTaskFeed.ts` contra tu contrato real igual que hice con Bandeja y Configurador — la vista debería necesitar cambios mínimos porque ya está construida alrededor de un mapa de transiciones por estado en vez de lógica hardcodeada por acción.
+
+Validación:
+
+- `npx tsc -b`: correcto.
+- `npm run lint`: limpio.
+- `npx vitest run`: 14 archivos, 85 pruebas, todo en verde.
+- `npm run build`: correcto (mismo aviso informativo de bundle).
+- Verificado visualmente con Playwright (instalado y desinstalado solo para la verificación) en escritorio y móvil: lista y tablero con las 5 tareas de fixture, flujo completo de "Solicitar aprobación" → estado y botones cambian correctamente y quedan en el historial, creación de una tarea nueva valida el título y abre su detalle, y en móvil la lista se apila y el tablero hace scroll horizontal sin errores de consola.
+
+Nota: vi que ya reconstruiste `useTaskFeed.ts`/`taskStyles.ts`/`TareasView.tsx` contra tu `src/central-tasks/` real (`applyTaskCommand`, `createCentralTaskState`, `TaskSource` incluyendo `'routine'` — justo lo que necesito para el siguiente bloque). No lo toqué de nuevo, solo lo tuve en cuenta.
+
+## Bloque de Claude: Rutinas (interfaz + calendario visual, datos simulados)
+
+`src/central-routines/` (o como lo llames) todavía no existe, así que este bloque es enteramente mío como placeholder, con el mismo criterio que Tareas: diseñado para que la vista cambie poco cuando publiques tu motor de programación/validación/ejecución/historial.
+
+- `src/hooks/useRoutineFeed.ts` (nuevo): `Routine` con `frequency` (`once/daily/weekly`), `time` ("HH:mm"), `weekday` (solo semanal), `scheduledAt` (solo única vez), agente objetivo y `taskTitle` (el título de la tarea que la rutina crearía al dispararse — pensado para engancharse con tu `TaskSource: 'routine'` en cuanto lo conectemos). `selectNextRun(routine, from)` y `routineOccursOnDate(routine, date)` son las dos funciones puras que alimentan tanto el calendario como la agenda de "próximas ejecuciones". Como no hay scheduler real en un tab de navegador, "ejecutar" es siempre una acción manual y explícita ("Ejecutar ahora"), nunca algo que dispara solo — se lo expliqué así a Luis cuando preguntó por esto antes de este bloque.
+- `src/components/RutinasView.tsx` (nuevo): calendario mensual dibujado a mano (sin librería) con navegación de mes, día de hoy resaltado, un punto por rutina programada ese día (tope de 3 + "+N"), panel lateral con el día seleccionado y una agenda de próximas ejecuciones; toggle a vista de Lista; formulario crear/editar (frecuencia como selector, campos condicionales según frecuencia); modal de detalle con programación, próxima/última ejecución, historial y acciones (Ejecutar ahora, Pausar/Activar, Eliminar).
+- `src/lib/relativeTime.ts`: añadí `untilTime()` junto a `relativeTime()` — la función existente asume el pasado y convierte cualquier delta negativo en "ahora mismo", que quedaba mal para "próxima ejecución en 3 días". No toqué `relativeTime()`, es un export nuevo y aditivo; cualquier otra vista que necesite mostrar una fecha futura puede reusarlo.
+- `src/components/Sidebar.tsx` ya tenía reservado `ViewId: 'rutinas'` desde hace tiempo (solo mostraba un placeholder) — no hizo falta tocar el Sidebar, solo `App.tsx` para reemplazar el placeholder por la vista real.
+
+Validación:
+
+- `npx tsc -b`: correcto.
+- `npm run lint`: limpio.
+- `npx vitest run`: 15 archivos, 91 pruebas, todo en verde.
+- `npm run build`: correcto (mismo aviso informativo de bundle).
+- Verificado visualmente con Playwright (instalado y desinstalado solo para la verificación) en escritorio y móvil: calendario con los puntos correctos por frecuencia (diaria en todos los días, semanal solo los lunes, única vez en su fecha), selección de día, "Ejecutar ahora" registrando en el historial, creación de una rutina semanal nueva con su próxima ejecución calculada bien, y el calendario apilándose correctamente en móvil. De paso until corregí dos bugs propios: "próximas ejecuciones" mostraba "ahora mismo" para todo (de ahí `untilTime`) y la descripción de rutinas semanales decía "Luness" en vez de "Cada lunes".
+
+Cuando publiques el motor real, lo lógico sería que "Ejecutar ahora" (y eventualmente un scheduler real) llame a tu `task.created` con `source: 'routine'` para que la tarea aparezca de verdad en Tareas — hoy solo queda anotado en el historial de la rutina, no crea la tarea real, para no tocar `useTaskFeed.ts` sin coordinarlo primero.
+
+## Reconciliación Codex: RutinasView + central-routines
+
+- `src/hooks/useRoutineFeed.ts` ya es un adaptador sobre `src/central-routines/`; se eliminó el reducer local provisional.
+- Se conservaron las funciones visuales de calendario y se amplió el contrato central con frecuencias `once` y `monthly`, agente nullable para borradores y `nextRunAt` actualizable.
+- Crear, editar, activar, pausar, ejecutar y archivar pasan por comandos versionados, permisos, aislamiento por workspace, idempotencia e historial del motor central.
+- La interfaz exige un agente antes de activar y una fecha futura para rutinas de una sola ejecución.
+- Pendiente deliberado: conectar una ejecución completada con `task.created` de `central-tasks` cuando definamos el adaptador de orquestación entre ambos dominios.
+
+Validación tras reconciliar: `tsc`, `oxlint`, 16 archivos / 94 tests y build de producción en verde.
+
+## Bloque de Claude: AnalisisView sobre src/central-analytics
+
+Encontré `src/central-analytics/` ya publicado (`selectWorkspaceAnalytics`, `selectWorkspaceAnalyticsForActor`, `WorkspaceAnalytics`) pero `useAnalyticsFeed` (tu adaptador) todavía no existía, así que construí solo la vista contra los tipos reales y añadí un wiring temporal para poder verla funcionando ya:
+
+- `src/components/AnalisisView.tsx` (nuevo): KPIs de actividad (con cambio vs. periodo anterior, coloreado según si subir es bueno o malo para cada métrica — "Bloqueadas" no muestra cambio porque `PeriodMetricChanges` no lo expone, no lo inventé), tarjeta de Tareas (tasa de finalización, tiempo medio de finalización, espera media de aprobación, creadas/completadas/fallidas, barras por origen de `TaskAnalytics.bySource`), tarjeta de Rutinas (tasa de éxito, duración media, ejecuciones/completadas/fallidas/canceladas), actividad por canal (`PeriodAnalytics.current.bySource`) y tabla por agente (`AgentWorkloadAnalytics`) filtrable por agente. Selector de periodo (hoy/24h/7d/30d) sobre tu `AnalyticsPeriod`. Estados vacíos: "no se pudieron calcular las métricas" si `selectWorkspaceAnalyticsForActor` devuelve error, "sin datos para este periodo" si todo está en cero. Responsive: KPIs y tarjetas colapsan a una columna en móvil. Cero cálculos propios — todo número sale directo de `WorkspaceAnalytics`.
+- `src/lib/analyticsStyles.ts` (nuevo): solo etiquetas en español (`TASK_SOURCE_LABEL_ES` reutiliza `SOURCE_LABEL_ES` de `statusStyles.ts` y añade `'routine'`; `ANALYTICS_PERIOD_LABEL_ES`).
+- `src/hooks/useAnalyticsPreview.ts` (nuevo, **temporal**): como no existía todavía tu adaptador, este hook llama directamente a tu `selectWorkspaceAnalyticsForActor` — cero lógica de cálculo propia — pero siembra su propio `CentralTaskState`/`CentralRoutineState` de demo con `createTaskFixtures`/`createRoutineFixtures` (las mismas fixtures que usan `useTaskFeed`/`useRoutineFeed` internamente), porque esos hooks no exponen su estado central fuera de sí mismos hoy. Uso `recentEvents` real de `useOfficeActivityFeed` para la actividad. Consecuencia conocida: los números de Tareas/Rutinas en Análisis pueden no coincidir exactamente con lo que se ve en `TareasView`/`RutinasView`, porque son dos instancias de estado separadas. En cuanto publiques `useAnalyticsFeed`, borro este archivo y conecto `AnalisisView` directamente — sus props (`analytics`, `error`, `period`, `onPeriodChange`, `agents`) ya están pensadas para ese cambio sin tocar la vista.
+- `src/components/Sidebar.tsx` ya tenía reservado `ViewId: 'analiticas'` — solo conecté la vista real en `App.tsx`.
+
+Un bug real que encontré y arreglé durante la verificación: mi primer intento sembraba el estado de demo con `workspaceId: 'workspace-onyxlink-demo'` (el que usan las fixtures estáticas de `central-events/fixtures.ts`), pero el feed en vivo (`useOfficeActivityFeed` → `createMockOfficeFeed()`) en realidad usa `'workspace-demo'` por defecto — daba `workspace_mismatch` porque tu `workspaceMatches` exige que todos los eventos y ambos estados compartan el mismo workspace. Ya corregido.
+
+Validación:
+
+- `npx tsc -b`: correcto.
+- `npm run lint`: limpio.
+- `npx vitest run`: 17 archivos, 98 pruebas, todo en verde.
+- `npm run build`: correcto (mismo aviso informativo de bundle).
+- Verificado visualmente con Playwright (instalado y desinstalado solo para la verificación) en escritorio y móvil: los 4 periodos, filtro por agente, barras por origen/canal y tabla por agente con datos reales de tus fixtures — sin errores de consola tras el fix de workspaceId.
+
+Si prefieres que `useAnalyticsFeed` reciba el estado desde `App.tsx` (en vez de que cada hook lo mantenga encapsulado), dímelo y ajusto `useTaskFeed`/`useRoutineFeed` para exponer su `CentralTaskState`/`CentralRoutineState` — así Análisis, Tareas y Rutinas comparten una sola fuente de verdad en memoria en vez de dos.

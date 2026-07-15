@@ -7,6 +7,8 @@ type Props = {
   events: OfficeActivityEvent[];
   agents: Agent[];
   onSelectAgent: (id: string) => void;
+  resolveContactId: (event: OfficeActivityEvent | null | undefined) => string | null;
+  onOpenContact: (contactId: string) => void;
 };
 
 const ENTITY_LABEL_ES: Record<string, string> = {
@@ -20,14 +22,14 @@ const ENTITY_LABEL_ES: Record<string, string> = {
   template: 'Plantilla',
 };
 
-export default function ActividadView({ events, agents, onSelectAgent }: Props) {
+export default function ActividadView({ events, agents, onSelectAgent, resolveContactId, onOpenContact }: Props) {
   const now = Date.now();
   const agentById = new Map(agents.map((a) => [a.id, a]));
 
   return (
     <div className="h-full flex flex-col">
       <div className="px-6 pt-5 pb-3 border-b border-white/[0.06] shrink-0">
-        <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">Módulo ONYXLINK</div>
+        <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">Oficina Virtual</div>
         <h2 className="text-white font-semibold">Actividad</h2>
         <p className="text-sm text-white/40 mt-0.5">
           Lo que está pasando en la oficina en tiempo real — WhatsApp, voz, automatizaciones y tareas manuales.
@@ -41,11 +43,15 @@ export default function ActividadView({ events, agents, onSelectAgent }: Props) 
           <ul className="space-y-1.5">
             {events.map((event) => {
               const agent = agentById.get(event.agentId);
+              const contactId = resolveContactId(event);
               return (
                 <li key={event.id}>
-                  <button
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => onSelectAgent(event.agentId)}
-                    className="w-full flex items-start gap-3 text-left px-3 py-2.5 rounded-lg hover:bg-white/[0.035] transition-colors"
+                    onKeyDown={(e) => e.key === 'Enter' && onSelectAgent(event.agentId)}
+                    className="w-full flex items-start gap-3 text-left px-3 py-2.5 rounded-lg hover:bg-white/[0.035] transition-colors cursor-pointer"
                   >
                     <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${STATUS_TW_BG[event.status]}`} />
 
@@ -78,7 +84,19 @@ export default function ActividadView({ events, agents, onSelectAgent }: Props) 
                         <span>{relativeTime(event.occurredAt, now)}</span>
                       </div>
                     </div>
-                  </button>
+
+                    {contactId && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenContact(contactId);
+                        }}
+                        className="shrink-0 self-center text-[11px] font-medium text-emerald-300/70 hover:text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/10 rounded-md px-2.5 py-1 transition-colors"
+                      >
+                        Ver contacto
+                      </button>
+                    )}
+                  </div>
                 </li>
               );
             })}

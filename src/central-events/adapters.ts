@@ -5,6 +5,7 @@ import type {
   OfficeActivityStatus,
   OfficeEntityType,
 } from './types';
+import { defaultAgentForSource } from './agent-bindings';
 
 type BaseAdapterInput = {
   eventId: string;
@@ -71,7 +72,7 @@ function buildEvent(input: BaseAdapterInput, parts: EventParts): OfficeActivityE
 }
 
 export function adaptWhatsAppActivity(input: WhatsAppActivityInput): OfficeActivityEvent {
-  const specialist = input.agentId ?? 'lead-intake';
+  const specialist = input.agentId ?? defaultAgentForSource('whatsapp');
   const routeActivityId = `whatsapp:${input.conversationId}:route`;
   const specialistActivityId = `whatsapp:${input.conversationId}:${specialist}`;
 
@@ -140,7 +141,7 @@ export function adaptWhatsAppActivity(input: WhatsAppActivityInput): OfficeActiv
 }
 
 export function adaptVoiceActivity(input: VoiceActivityInput): OfficeActivityEvent {
-  const agentId = input.agentId ?? 'lead-intake';
+  const agentId = input.agentId ?? defaultAgentForSource('voice');
   const activityId = `voice:${input.callId}:${agentId}`;
 
   switch (input.phase) {
@@ -239,4 +240,3 @@ export function adaptApprovalActivity(input: ApprovalActivityInput): OfficeActiv
     runId: input.runId,
   });
 }
-

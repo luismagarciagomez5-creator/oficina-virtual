@@ -1,4 +1,5 @@
 import { AGENT_META, AGENT_ORDER } from '../agents/registry';
+import { OFFICE_SEAT_BINDINGS } from './central-events';
 import type { AgentId } from '../schemas';
 import type { Agent, AgentStatus, CharacterAppearance } from './types';
 
@@ -10,6 +11,36 @@ import type { Agent, AgentStatus, CharacterAppearance } from './types';
  * the purely visual bits — color, starting status, Minecraft appearance —
  * live here.
  */
+
+/**
+ * Visual-only relabeling for the three seats with a fixed identity in the
+ * real SaaS (see COORDINACION_CLAUDE_CODEX.md > "Dirección vinculante tras
+ * revisar el SaaS real"). AgentId and AGENT_META stay untouched — the
+ * orchestrator/tests never see this — only what the office *displays*
+ * changes, driven by OFFICE_SEAT_BINDINGS so it can't drift from the
+ * contract. The four specialists keep their current identity as-is: they're
+ * configurable placeholders, not yet bound to anything real.
+ */
+const SEAT_OVERRIDES: Partial<Record<AgentId, { name?: string; department: string; role: string; description: string }>> = {
+  coordinator: {
+    name: 'Orquestador',
+    department: 'Coordinación',
+    role: 'Orquestador',
+    description: 'Coordina la actividad real de WhatsApp, Voz y los especialistas, y decide qué puesto debe atender cada caso.',
+  },
+  'lead-intake': {
+    department: 'WhatsApp',
+    role: 'Agente WhatsApp',
+    description:
+      'Representa al agente de WhatsApp activo del workspace (setter, soporte o agendamiento) — solo uno puede estar activo a la vez, no son tres agentes en paralelo.',
+  },
+  strategy: {
+    department: 'Voz',
+    role: 'Agente de Voz',
+    description:
+      'Representa al asistente de voz del workspace, conectado a Vapi. Comparte contacto e historial con WhatsApp cuando la memoria cruzada está activa.',
+  },
+};
 const VISUAL: Record<AgentId, { color: string; status: AgentStatus; appearance: CharacterAppearance }> = {
   coordinator: {
     color: '#e2e8f0',
@@ -48,11 +79,16 @@ const VISUAL: Record<AgentId, { color: string; status: AgentStatus; appearance: 
   },
 };
 
-export const agents: Agent[] = AGENT_ORDER.map((id) => ({
-  id,
-  name: AGENT_META[id].name,
-  department: AGENT_META[id].department,
-  role: AGENT_META[id].role,
-  description: AGENT_META[id].description,
-  ...VISUAL[id],
-}));
+export const agents: Agent[] = AGENT_ORDER.map((id) => {
+  const meta = AGENT_META[id];
+  const override = SEAT_OVERRIDES[id];
+  return {
+    id,
+    name: override?.name ?? meta.name,
+    department: override?.department ?? meta.department,
+    role: override?.role ?? meta.role,
+    description: override?.description ?? meta.description,
+    seat: OFFICE_SEAT_BINDINGS[id],
+    ...VISUAL[id],
+  };
+});

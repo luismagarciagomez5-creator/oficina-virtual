@@ -38,7 +38,7 @@ export default function ChatPanel({ agent, messages, isTyping, onClose, onSend, 
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 420, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-          className="onyx-chat fixed top-0 right-0 h-full w-full sm:w-[410px] z-50 flex flex-col"
+          className="onyx-chat fixed top-0 right-0 h-full w-full sm:w-[410px] z-[70] flex flex-col isolate"
         >
           <div className="flex items-center gap-3 px-4 py-3.5 border-b border-white/[0.07]">
             <div

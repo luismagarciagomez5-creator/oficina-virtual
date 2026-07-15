@@ -41,6 +41,11 @@ button {
   background-size: 36px 36px;
 }
 
+.onyx-app main {
+  min-height: 0;
+  overflow: hidden;
+}
+
 .onyx-sidebar {
   background: linear-gradient(180deg, #08070a 0%, #060507 100%);
   border-right: 1px solid rgba(139, 92, 246, 0.18);
@@ -55,20 +60,14 @@ button {
 .onyx-wordmark {
   position: relative;
   height: 43px;
-  overflow: hidden;
-  border: 1px solid rgba(167, 139, 250, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 11px;
+  border: 1px solid rgba(148, 163, 164, 0.32);
   border-radius: 5px;
-  background: #121212;
-  box-shadow: inset 0 0 20px rgba(124, 58, 237, 0.08);
-}
-
-.onyx-wordmark img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 51%;
-  transform: scale(2.12);
-  filter: contrast(1.08) saturate(1.12);
+  background: #f5f7f5;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.16);
 }
 
 .onyx-nav-item::before {
@@ -129,6 +128,14 @@ button {
   backdrop-filter: blur(20px);
 }
 
+.onyx-popover.onyx-agent-menu {
+  max-height: min(20rem, calc(100dvh - 4.5rem));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
 .onyx-input {
   border: 1px solid rgba(255, 255, 255, 0.09);
   background: rgba(0, 0, 0, 0.36);
@@ -144,6 +151,12 @@ button {
 .onyx-input:focus {
   border-color: rgba(167, 139, 250, 0.58);
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.onyx-input:is(textarea) {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .onyx-chat {
@@ -182,11 +195,11 @@ button {
   align-items: center;
   gap: 7px;
   padding: 7px 12px;
-  border: 1px solid color-mix(in srgb, var(--agent-color) 65%, white 15%);
+  border: 1px solid rgba(78, 92, 94, 0.28);
   border-radius: 5px;
-  background: rgba(8, 6, 11, 0.92);
-  box-shadow: 0 0 18px color-mix(in srgb, var(--agent-color) 35%, transparent);
-  color: #f8fafc;
+  background: rgba(250, 251, 248, 0.94);
+  box-shadow: 0 8px 22px rgba(54, 66, 68, 0.24);
+  color: #263337;
   font: 650 12px/1.1 Inter, system-ui, sans-serif;
   letter-spacing: 0;
   white-space: nowrap;
@@ -201,5 +214,19 @@ button {
   flex: 0 0 7px;
   border-radius: 50%;
   background: var(--agent-color);
-  box-shadow: 0 0 8px var(--agent-color);
+  box-shadow: none;
+}
+
+@media (max-width: 640px) {
+  .office-sign {
+    gap: 5px;
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+
+  .office-sign__dot {
+    width: 6px;
+    height: 6px;
+    flex-basis: 6px;
+  }
 }
