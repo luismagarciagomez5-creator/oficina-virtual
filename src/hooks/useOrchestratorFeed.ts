@@ -5,6 +5,7 @@ import {
   createCentralOrchestratorState,
   createOrchestratorFixtures,
   selectActiveOrchestratorConfig,
+  selectOpenRouterExecutionForAgent,
   selectOpenRouterModelForAgent,
 } from '../central-orchestrator';
 import type {
@@ -13,6 +14,7 @@ import type {
   OpenRouterAgentModelOverride,
   OpenRouterConfig,
   OpenRouterCostProfile,
+  ResolvedOpenRouterExecution,
   OrchestratorActorRole,
   OrchestratorCommand,
   OrchestratorMode,
@@ -57,6 +59,8 @@ export type OrchestratorFeed = {
   updateAgentModelOverride: (agentId: AgentId, patch: AgentOverridePatch | null) => void;
   /** Resolved model + readiness for one seat (workspace default vs. its own override) — pure derivation, no network. */
   resolveModelForAgent: (agentId: AgentId) => ResolvedOpenRouterModel;
+  /** Full local preflight status, including active mode and backend connection state. */
+  resolveExecutionForAgent: (agentId: AgentId) => ResolvedOpenRouterExecution;
 };
 
 export function useOrchestratorFeed(actorEmail: string, role: OrchestratorActorRole, workspaceId = WORKSPACE_ID): OrchestratorFeed {
@@ -107,6 +111,7 @@ export function useOrchestratorFeed(actorEmail: string, role: OrchestratorActorR
     }));
 
   const resolveModelForAgent = (agentId: AgentId) => selectOpenRouterModelForAgent(state.binding, agentId);
+  const resolveExecutionForAgent = (agentId: AgentId) => selectOpenRouterExecutionForAgent(state.binding, agentId);
 
   return {
     binding: state.binding,
@@ -119,5 +124,6 @@ export function useOrchestratorFeed(actorEmail: string, role: OrchestratorActorR
     updateOpenRouterModelPolicy,
     updateAgentModelOverride,
     resolveModelForAgent,
+    resolveExecutionForAgent,
   };
 }

@@ -2,7 +2,12 @@ import { useState } from 'react';
 import type { AgentId } from '../../schemas';
 import type { OpenRouterCostProfile } from '../central-orchestrator';
 import type { AgentOverridePatch, ModelPolicyPatch, OrchestratorFeed } from '../hooks/useOrchestratorFeed';
-import { MODEL_BLOCKER_LABEL_ES, OPENROUTER_COST_PROFILE_LABEL_ES, OPENROUTER_COST_PROFILE_TW } from '../lib/orchestratorStyles';
+import {
+  MODEL_BLOCKER_LABEL_ES,
+  OPENROUTER_COST_PROFILE_LABEL_ES,
+  OPENROUTER_COST_PROFILE_TW,
+  OPENROUTER_EXECUTION_BLOCKER_LABEL_ES,
+} from '../lib/orchestratorStyles';
 import type { Agent } from '../types';
 
 // Presentational only, built against Codex's real central-orchestrator
@@ -161,8 +166,9 @@ function ExecutionStatusRow({ agent, feed }: { agent: Agent; feed: OrchestratorF
     );
   }
 
-  const resolved = feed.resolveModelForAgent(agent.id);
-  const ready = resolved.ready;
+  const execution = feed.resolveExecutionForAgent(agent.id);
+  const resolved = execution.model;
+  const ready = execution.ready;
 
   return (
     <div className="flex items-center justify-between gap-2 rounded-md border border-white/[0.05] bg-black/20 px-3 py-2">
@@ -170,7 +176,9 @@ function ExecutionStatusRow({ agent, feed }: { agent: Agent; feed: OrchestratorF
         <div className="text-xs text-white/80 font-medium">{agent.name}</div>
         <div className="text-[10px] text-white/30 truncate">{resolved.model ?? 'sin modelo asignado'}</div>
         {!ready && (
-          <div className="text-[10px] text-amber-300/70 mt-0.5">{resolved.blockers.map((b) => MODEL_BLOCKER_LABEL_ES[b]).join(' · ')}</div>
+          <div className="text-[10px] text-amber-300/70 mt-0.5">
+            {execution.blockers.map((b) => OPENROUTER_EXECUTION_BLOCKER_LABEL_ES[b]).join(' · ')}
+          </div>
         )}
       </div>
       <span

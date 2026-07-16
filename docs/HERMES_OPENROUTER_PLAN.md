@@ -73,6 +73,16 @@ revocación sin afectar al agente de WhatsApp.
 
 No se configura una API key por agente. Una conexión alimenta varios modelos.
 
+El contrato backend puro de esta conexión vive en
+`src/central-orchestration/openrouter-connection.ts`. Distingue conexión
+`shared` o `dedicated` y mantiene los estados `not_configured`, `pending`,
+`connected`, `error` y `revoked`. Las solicitudes administrativas solo pueden
+pedir `connect`, `verify` o `revoke`; no aceptan API keys ni permiten elegir un
+`connectionId`. El identificador opaco y `hasCredential` solo llegan mediante
+un reporte autenticado del sistema, correlacionado con la solicitud pendiente.
+Solicitudes y reportes son estrictos, idempotentes y aislados por workspace.
+Este contrato todavía no llama a OpenRouter ni guarda secretos reales.
+
 ## Modelo por especialista
 
 La oficina tendrá un modelo predeterminado y una configuración opcional por
@@ -95,12 +105,15 @@ devuelve bloqueos explícitos (`api_key_missing`, `model_missing`,
 
 El preflight backend inicial ya vive en `src/central-orchestration/openrouter-run.ts`:
 `prepareOpenRouterAgentRun(...)` recibe una `OpenRouterRunRequest`, exige workspace
-correcto, `activeMode: openrouter`, estado `connected` y modelo resuelto listo. Si
+correcto, estado `connected` y modelo resuelto listo. El Coordinador requiere
+`activeMode: openrouter`; los cuatro especialistas también pueden ejecutarse cuando
+Hermes es el orquestador activo. WhatsApp y Voz quedan fuera porque conservan sus
+propias conexiones y políticas. Si
 todo está preparado devuelve `PreparedOpenRouterRun` con `runId`, `workspaceId`,
 `agentId`, entrada, contexto, modelo/fallback, perfil de coste, límites y trazabilidad
 para el backend. La salida no transporta API key, token, secret, streaming, prompt
 real, coste real ni logs de tokens. Los rechazos son explícitos:
-`workspace_mismatch`, `orchestrator_not_openrouter`, `openrouter_not_connected`,
+`workspace_mismatch`, `agent_not_openrouter_managed`, `orchestrator_not_openrouter`, `openrouter_not_connected`,
 `api_key_missing`, `model_missing`, `premium_not_allowed` o `invalid_run_request`.
 
 El Orquestador interno también puede tener su propio modelo. En modo Hermes,

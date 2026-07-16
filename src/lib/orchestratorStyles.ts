@@ -1,5 +1,6 @@
 import type {
   OpenRouterCostProfile,
+  OpenRouterExecutionBlockerCode,
   OrchestratorConnectionStatus,
   OrchestratorMode,
   OrchestratorMutationErrorCode,
@@ -56,4 +57,11 @@ export const MODEL_BLOCKER_LABEL_ES: Record<ResolvedOpenRouterModel['blockers'][
   api_key_missing: 'Falta la API key en el backend',
   model_missing: 'Sin modelo asignado todavía',
   premium_not_allowed: 'Modelo premium no permitido para este puesto',
+};
+
+export const OPENROUTER_EXECUTION_BLOCKER_LABEL_ES: Record<OpenRouterExecutionBlockerCode, string> = {
+  agent_not_openrouter_managed: 'Este puesto conserva su propia conexión y política',
+  orchestrator_not_openrouter: 'El workspace no está en modo OpenRouter',
+  openrouter_not_connected: 'OpenRouter no está conectado en el backend',
+  ...MODEL_BLOCKER_LABEL_ES,
 };

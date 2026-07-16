@@ -3,6 +3,7 @@ import {
   applyOrchestratorCommand,
   createCentralOrchestratorState,
   createOrchestratorFixtures,
+  selectOpenRouterExecutionForAgent,
   selectOpenRouterModelForAgent,
   selectActiveOrchestratorConfig,
   selectOrchestratorAudit,
@@ -206,6 +207,35 @@ describe('central orchestrator', () => {
       model: null,
       ready: false,
       blockers: ['model_missing', 'premium_not_allowed'],
+    });
+  });
+
+  it('only marks execution ready when OpenRouter is active, connected, and the model policy is ready', () => {
+    let state = createCentralOrchestratorState(WORKSPACE_ID);
+    state = apply(state, {
+      type: 'orchestrator.openrouter_model_policy_updated', commandId: 'cmd-1', workspaceId: WORKSPACE_ID, actor: ADMIN,
+      occurredAt: '2026-07-16T09:00:00.000Z', expectedRevision: 1, model: 'openai/gpt-4.1-mini',
+    });
+    state = apply(state, {
+      type: 'orchestrator.backend_status_reported', commandId: 'cmd-2', workspaceId: WORKSPACE_ID, actor: SYSTEM,
+      occurredAt: '2026-07-16T09:01:00.000Z', expectedRevision: 2, mode: 'openrouter', hasSecret: true,
+      status: 'connected', statusDetail: null,
+    });
+
+    expect(selectOpenRouterExecutionForAgent(state.binding, 'coordinator')).toMatchObject({ ready: true, blockers: [] });
+
+    state = apply(state, {
+      type: 'orchestrator.mode_selected', commandId: 'cmd-3', workspaceId: WORKSPACE_ID, actor: ADMIN,
+      occurredAt: '2026-07-16T09:02:00.000Z', expectedRevision: 3, mode: 'hermes_telegram',
+    });
+    expect(selectOpenRouterExecutionForAgent(state.binding, 'coordinator')).toMatchObject({
+      ready: false,
+      blockers: ['orchestrator_not_openrouter'],
+    });
+    expect(selectOpenRouterExecutionForAgent(state.binding, 'proposal')).toMatchObject({ ready: true, blockers: [] });
+    expect(selectOpenRouterExecutionForAgent(state.binding, 'lead-intake')).toMatchObject({
+      ready: false,
+      blockers: ['agent_not_openrouter_managed'],
     });
   });
 

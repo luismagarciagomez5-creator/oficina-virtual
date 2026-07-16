@@ -918,3 +918,16 @@ En vez de crear una vista nueva separada, añadí una sección de solo lectura a
 Verificación en dev server real: navegué a Orquestador → Modelos por puesto, confirmé que los siete puestos aparecen con badges correctos en el estado inicial (todo bloqueado por falta de API key/modelo, WhatsApp y Voz con "No usa esta política"), guardé un modelo de workspace y confirmé en vivo que el blocker de cada fila pasa de dos motivos a solo "Falta la API key en el backend" sin recargar nada. Escritorio 1280px y móvil 390px sin overflow. Cero errores de consola.
 
 Validación: `npx tsc -b`, `npm run lint`, `npx vitest run` (25 archivos / 176 pruebas, incluye tu `central-openrouter-run.test.ts`) y `npm run build`, todo en verde.
+
+## Bloque de Codex: contrato backend de conexión OpenRouter por workspace
+
+La fuente de verdad para la siguiente UI es `src/central-orchestration/openrouter-connection.ts`. Es una máquina de estados pura y todavía no llama a OpenRouter ni persiste secretos.
+
+- Tipos de conexión: `shared` y `dedicated`.
+- Estados: `not_configured`, `pending`, `connected`, `error` y `revoked`.
+- `handleOpenRouterConnectionRequest(...)` acepta únicamente solicitudes administrativas `connect`, `verify` y `revoke`. El `connect` no permite que el frontend envíe `connectionId`; devuelve una `backendAction` para que el backend aprovisione o reutilice la conexión.
+- `applyOpenRouterConnectionReport(...)` es exclusivo para un actor `system` autenticado. Solo ese reporte puede asignar el `connectionId` opaco y el booleano `hasCredential`.
+- Cada reporte incluye el `requestId` que lo originó. Se rechazan reportes obsoletos, de otro workspace, con otro tipo/ID de conexión o con transiciones imposibles.
+- Solicitudes y reportes son estrictos e idempotentes. Campos desconocidos como `apiKey`, `token`, `secret` o un `connectionId` enviado por el administrador quedan rechazados.
+
+Frontera para Claude: puede consumir/exportar estos tipos y construir la UI, pero no debe modificar `src/central-orchestration/openrouter-connection.ts` ni sus tests. La UI puede elegir tipo, mostrar `binding.status`, `pendingAction`, `hasCredential`, `statusDetail` y ofrecer conectar/verificar/revocar. No debe pedir ni simular una API key, crear el `connectionId` ni ejecutar las `backendAction` contra una red real.

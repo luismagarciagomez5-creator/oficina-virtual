@@ -192,16 +192,43 @@ describe('OpenRouter run preflight boundary', () => {
     });
   });
 
-  it('rejects workspace mismatch, inactive mode and disconnected OpenRouter status', () => {
+  it('allows Hermes to invoke specialists but reserves the coordinator for OpenRouter mode', () => {
     const base = connectedOpenRouterBinding();
     expect(prepareOpenRouterAgentRun(base, runRequest({ workspaceId: 'workspace-other' })))
       .toEqual({ status: 'rejected', runId: 'openrouter-run-1', code: 'workspace_mismatch' });
-    expect(prepareOpenRouterAgentRun({ ...base, activeMode: 'hermes_telegram' }, runRequest()))
-      .toEqual({ status: 'rejected', runId: 'openrouter-run-1', code: 'orchestrator_not_openrouter' });
+    const hermesBinding = { ...base, activeMode: 'hermes_telegram' as const };
+    expect(prepareOpenRouterAgentRun(hermesBinding, runRequest({ agentId: 'proposal' }))).toMatchObject({ status: 'prepared' });
+    expect(prepareOpenRouterAgentRun(hermesBinding, runRequest({ agentId: 'coordinator' }))).toEqual({
+      status: 'rejected',
+      runId: 'openrouter-run-1',
+      code: 'orchestrator_not_openrouter',
+      blockers: ['orchestrator_not_openrouter'],
+    });
+  });
+
+  it('rejects protected channel agents and disconnected OpenRouter status', () => {
+    const base = connectedOpenRouterBinding();
+    expect(prepareOpenRouterAgentRun(base, runRequest({ agentId: 'lead-intake' }))).toEqual({
+      status: 'rejected',
+      runId: 'openrouter-run-1',
+      code: 'agent_not_openrouter_managed',
+      blockers: ['agent_not_openrouter_managed'],
+    });
+    expect(prepareOpenRouterAgentRun(base, runRequest({ agentId: 'strategy' }))).toEqual({
+      status: 'rejected',
+      runId: 'openrouter-run-1',
+      code: 'agent_not_openrouter_managed',
+      blockers: ['agent_not_openrouter_managed'],
+    });
     expect(prepareOpenRouterAgentRun({
       ...base,
       openrouter: { ...base.openrouter, status: 'pending' },
-    }, runRequest())).toEqual({ status: 'rejected', runId: 'openrouter-run-1', code: 'openrouter_not_connected' });
+    }, runRequest())).toEqual({
+      status: 'rejected',
+      runId: 'openrouter-run-1',
+      code: 'openrouter_not_connected',
+      blockers: ['openrouter_not_connected'],
+    });
   });
 
   it('rejects invalid requests and unknown secret fields', () => {

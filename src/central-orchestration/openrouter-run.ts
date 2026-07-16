@@ -1,13 +1,13 @@
 import { z } from 'zod';
 import { AgentIdSchema, type AgentId } from '../../schemas';
 import {
-  selectOpenRouterModelForAgent,
+  selectOpenRouterExecutionForAgent,
+  type OpenRouterExecutionBlockerCode,
   type OpenRouterCostProfile,
   type WorkspaceOrchestratorBinding,
 } from '../central-orchestrator';
 
-const OPENROUTER_BLOCKER_CODES = ['api_key_missing', 'model_missing', 'premium_not_allowed'] as const;
-export type OpenRouterRunBlockerCode = (typeof OPENROUTER_BLOCKER_CODES)[number];
+export type OpenRouterRunBlockerCode = OpenRouterExecutionBlockerCode;
 
 const IdentifierSchema = z.string().trim().min(1).max(200);
 const TextSchema = z.string().trim().min(1).max(12_000);
@@ -96,16 +96,9 @@ export function prepareOpenRouterAgentRun(
   if (request.workspaceId !== orchestrator.workspaceId) {
     return { status: 'rejected', runId: request.runId, code: 'workspace_mismatch' };
   }
-  if (orchestrator.activeMode !== 'openrouter') {
-    return { status: 'rejected', runId: request.runId, code: 'orchestrator_not_openrouter' };
-  }
-  if (orchestrator.openrouter.status !== 'connected') {
-    return { status: 'rejected', runId: request.runId, code: 'openrouter_not_connected' };
-  }
-
-  const resolved = selectOpenRouterModelForAgent(orchestrator, request.agentId);
-  if (!resolved.ready) {
-    const blockers = resolved.blockers;
+  const execution = selectOpenRouterExecutionForAgent(orchestrator, request.agentId);
+  if (!execution.ready) {
+    const blockers = execution.blockers;
     return {
       status: 'rejected',
       runId: request.runId,
@@ -113,6 +106,8 @@ export function prepareOpenRouterAgentRun(
       blockers,
     };
   }
+
+  const resolved = execution.model;
 
   if (!resolved.model) {
     return { status: 'rejected', runId: request.runId, code: 'model_missing', blockers: ['model_missing'] };

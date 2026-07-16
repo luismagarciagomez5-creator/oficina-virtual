@@ -34,6 +34,18 @@ export type ResolvedOpenRouterModel = {
   blockers: ('api_key_missing' | 'model_missing' | 'premium_not_allowed')[];
 };
 
+export type OpenRouterExecutionBlockerCode =
+  | 'agent_not_openrouter_managed'
+  | 'orchestrator_not_openrouter'
+  | 'openrouter_not_connected'
+  | ResolvedOpenRouterModel['blockers'][number];
+
+export type ResolvedOpenRouterExecution = {
+  model: ResolvedOpenRouterModel;
+  ready: boolean;
+  blockers: OpenRouterExecutionBlockerCode[];
+};
+
 export function selectOpenRouterModelForAgent(
   binding: WorkspaceOrchestratorBinding,
   agentId: AgentId,
@@ -65,4 +77,19 @@ export function selectOpenRouterModelForAgent(
     ready: blockers.length === 0,
     blockers,
   };
+}
+
+export function selectOpenRouterExecutionForAgent(
+  binding: WorkspaceOrchestratorBinding,
+  agentId: AgentId,
+): ResolvedOpenRouterExecution {
+  const model = selectOpenRouterModelForAgent(binding, agentId);
+  const blockers: OpenRouterExecutionBlockerCode[] = [];
+
+  if (agentId === 'lead-intake' || agentId === 'strategy') blockers.push('agent_not_openrouter_managed');
+  if (agentId === 'coordinator' && binding.activeMode !== 'openrouter') blockers.push('orchestrator_not_openrouter');
+  if (binding.openrouter.status !== 'connected') blockers.push('openrouter_not_connected');
+  blockers.push(...model.blockers);
+
+  return { model, ready: blockers.length === 0, blockers };
 }
