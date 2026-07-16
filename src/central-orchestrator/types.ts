@@ -17,10 +17,11 @@
 // only — the office backend is the sole owner of the actual token/API key,
 // this contract structurally cannot carry one (see validation.ts, which
 // rejects unknown fields such as `apiKey`/`token`/`secret` outright).
-// `HermesTelegramConfig.endpoint` follows the same rule even though it isn't
-// secret: it's a bridge address the *backend* provisions and reports, never
-// something an admin hand-types into this UI (see `botId` for the one field
-// admins do type — which bot belongs to this workspace, not where it lives).
+// `HermesTelegramConfig.endpoint` and `connectionId` follow the same rule even
+// though they aren't secrets: they are bridge metadata the *backend* provisions
+// and reports, never something an admin hand-types into this UI (see `botId`
+// for the one field admins do type — which bot belongs to this workspace, not
+// where it lives).
 
 export type OrchestratorMode = 'openrouter' | 'hermes_telegram';
 
@@ -52,6 +53,8 @@ export type HermesTelegramConfig = {
   mode: 'hermes_telegram';
   /** Bridge address, provisioned and reported by the backend — never admin-entered, never a token. */
   endpoint: string | null;
+  /** Opaque bridge connection id used to authenticate Hermes dispatches — never a token. */
+  connectionId: string | null;
   /** Telegram bot handle/id (e.g. "@onyxlink_hermes_bot") the admin identifies — never the bot token. */
   botId: string | null;
   status: OrchestratorConnectionStatus;
@@ -108,8 +111,8 @@ export type OrchestratorCommand =
   | (CommandBase & { type: 'orchestrator.hermes_bot_updated'; botId: string | null })
   // System-only: the backend reporting what it knows for one mode —
   // whether a secret/API key now exists, the resulting status, and (for
-  // hermes_telegram) the bridge endpoint it provisioned. An admin actor can
-  // never send this command (see state.ts).
+  // hermes_telegram) the bridge endpoint + opaque connection id it
+  // provisioned. An admin actor can never send this command (see state.ts).
   | (CommandBase & {
       type: 'orchestrator.backend_status_reported';
       mode: OrchestratorMode;
@@ -117,6 +120,7 @@ export type OrchestratorCommand =
       statusDetail: string | null;
       hasSecret: boolean;
       endpoint?: string | null;
+      connectionId?: string | null;
     });
 
 export type OrchestratorMutationErrorCode =

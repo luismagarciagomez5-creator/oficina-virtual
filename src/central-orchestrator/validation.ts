@@ -29,6 +29,7 @@ export const OrchestratorCommandSchema = z.discriminatedUnion('type', [
     statusDetail: z.string().trim().max(500).nullable(),
     hasSecret: z.boolean(),
     endpoint: z.string().trim().max(500).nullable().optional(),
+    connectionId: z.string().trim().max(300).nullable().optional(),
   }).strict(),
 ]);
 

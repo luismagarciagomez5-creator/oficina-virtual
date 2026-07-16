@@ -18,7 +18,7 @@ function emptyOpenRouterConfig(occurredAt: string, actorId: string): OpenRouterC
 }
 
 function emptyHermesConfig(occurredAt: string, actorId: string): HermesTelegramConfig {
-  return { mode: 'hermes_telegram', endpoint: null, botId: null, status: 'not_configured', hasSecret: false, statusDetail: null, updatedAt: occurredAt, updatedBy: actorId };
+  return { mode: 'hermes_telegram', endpoint: null, connectionId: null, botId: null, status: 'not_configured', hasSecret: false, statusDetail: null, updatedAt: occurredAt, updatedBy: actorId };
 }
 
 export function createCentralOrchestratorState(workspaceId: string, seedActorId = 'system'): CentralOrchestratorState {
@@ -115,6 +115,7 @@ export function applyOrchestratorCommand(state: CentralOrchestratorState, comman
     };
   } else {
     const endpoint = command.endpoint === undefined ? undefined : command.endpoint?.trim() || null;
+    const connectionId = command.connectionId === undefined ? undefined : command.connectionId?.trim() || null;
     if (endpoint && !isValidEndpoint(endpoint)) return { success: false, code: 'invalid_endpoint' };
     const patch = { status: command.status, statusDetail: command.statusDetail, updatedAt: command.occurredAt, updatedBy: command.actor.actorId };
     binding =
@@ -127,6 +128,7 @@ export function applyOrchestratorCommand(state: CentralOrchestratorState, comman
               ...patch,
               hasSecret: command.hasSecret,
               ...(endpoint !== undefined ? { endpoint } : {}),
+              ...(connectionId !== undefined ? { connectionId } : {}),
             },
             revision: current.revision + 1,
           };

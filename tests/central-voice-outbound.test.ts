@@ -28,6 +28,7 @@ function hermesBinding(overrides: Partial<WorkspaceOrchestratorBinding> = {}): W
     },
     hermesTelegram: {
       mode: 'hermes_telegram', endpoint: 'https://bridge.example.test/hermes', botId: '@hermes_test_bot',
+      connectionId: 'hermes-voice-test',
       status: 'connected', hasSecret: true, statusDetail: null, updatedAt: NOW, updatedBy: 'system',
     },
     ...overrides,

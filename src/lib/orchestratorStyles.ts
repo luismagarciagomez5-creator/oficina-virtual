@@ -4,12 +4,12 @@ import type { OrchestratorConnectionStatus, OrchestratorMode, OrchestratorMutati
 // enums read across the connection-settings UI.
 export const ORCHESTRATOR_MODE_LABEL_ES: Record<OrchestratorMode, string> = {
   openrouter: 'OpenRouter (chat nativo)',
-  hermes_telegram: 'Hermes por Telegram',
+  hermes_telegram: 'Hermes como Orquestador',
 };
 
 export const ORCHESTRATOR_MODE_DESCRIPTION_ES: Record<OrchestratorMode, string> = {
   openrouter: 'El Coordinador de esta oficina piensa por sí mismo, con un modelo servido a través de OpenRouter.',
-  hermes_telegram: 'Hermes es el Orquestador: Telegram → Hermes → Oficina Virtual → especialistas/canales → destino final.',
+  hermes_telegram: 'Hermes recibe órdenes por canal externo: chat directo, grupo con bot o voz, y coordina la Oficina Virtual.',
 };
 
 export const ORCHESTRATOR_STATUS_LABEL_ES: Record<OrchestratorConnectionStatus, string> = {

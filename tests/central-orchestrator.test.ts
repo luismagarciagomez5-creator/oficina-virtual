@@ -25,7 +25,7 @@ describe('central orchestrator', () => {
     const state = createCentralOrchestratorState(WORKSPACE_ID);
     expect(state.binding.activeMode).toBe('openrouter');
     expect(state.binding.openrouter).toMatchObject({ status: 'not_configured', hasApiKey: false, model: null });
-    expect(state.binding.hermesTelegram).toMatchObject({ status: 'not_configured', hasSecret: false, endpoint: null, botId: null });
+    expect(state.binding.hermesTelegram).toMatchObject({ status: 'not_configured', hasSecret: false, endpoint: null, connectionId: null, botId: null });
   });
 
   it('switches the active mode and records an audit entry', () => {
@@ -42,7 +42,7 @@ describe('central orchestrator', () => {
       type: 'orchestrator.hermes_bot_updated', commandId: 'cmd-1', workspaceId: WORKSPACE_ID, actor: ADMIN,
       occurredAt: '2026-07-16T09:00:00.000Z', expectedRevision: 1, botId: '@onyxlink_bot',
     });
-    expect(state.binding.hermesTelegram).toMatchObject({ endpoint: null, botId: '@onyxlink_bot', status: 'pending', hasSecret: false });
+    expect(state.binding.hermesTelegram).toMatchObject({ endpoint: null, connectionId: null, botId: '@onyxlink_bot', status: 'pending', hasSecret: false });
   });
 
   it('rejects a plaintext http:// endpoint when the backend reports one', () => {
@@ -54,20 +54,25 @@ describe('central orchestrator', () => {
     expect(result).toMatchObject({ success: false, code: 'invalid_endpoint' });
   });
 
-  it('only the backend can report the provisioned Hermes endpoint, never an admin', () => {
+  it('only the backend can report the provisioned Hermes endpoint and connection id, never an admin', () => {
     const adminAttempt = applyOrchestratorCommand(createCentralOrchestratorState(WORKSPACE_ID), {
       type: 'orchestrator.backend_status_reported', commandId: 'cmd-1', workspaceId: WORKSPACE_ID, actor: ADMIN,
       occurredAt: '2026-07-16T09:00:00.000Z', expectedRevision: 1, mode: 'hermes_telegram', status: 'connected', statusDetail: null,
-      hasSecret: true, endpoint: 'https://bridge.onyxlink.example/hermes',
+      hasSecret: true, endpoint: 'https://bridge.onyxlink.example/hermes', connectionId: 'hermes-onyxlink',
     });
     expect(adminAttempt).toMatchObject({ success: false, code: 'unauthorized' });
 
     const state = apply(createCentralOrchestratorState(WORKSPACE_ID), {
       type: 'orchestrator.backend_status_reported', commandId: 'cmd-2', workspaceId: WORKSPACE_ID, actor: SYSTEM,
       occurredAt: '2026-07-16T09:00:00.000Z', expectedRevision: 1, mode: 'hermes_telegram', status: 'connected', statusDetail: null,
-      hasSecret: true, endpoint: 'https://bridge.onyxlink.example/hermes',
+      hasSecret: true, endpoint: 'https://bridge.onyxlink.example/hermes', connectionId: 'hermes-onyxlink',
     });
-    expect(state.binding.hermesTelegram).toMatchObject({ endpoint: 'https://bridge.onyxlink.example/hermes', hasSecret: true, status: 'connected' });
+    expect(state.binding.hermesTelegram).toMatchObject({
+      endpoint: 'https://bridge.onyxlink.example/hermes',
+      connectionId: 'hermes-onyxlink',
+      hasSecret: true,
+      status: 'connected',
+    });
   });
 
   it('rejects config changes from a non-admin actor', () => {
@@ -122,7 +127,7 @@ describe('central orchestrator', () => {
   it('the fixtures reflect reality: Hermes selected but not configured, nothing invented', () => {
     let state = createCentralOrchestratorState(WORKSPACE_ID);
     for (const command of createOrchestratorFixtures(WORKSPACE_ID)) state = apply(state, command);
-    expect(selectActiveOrchestratorConfig(state)).toMatchObject({ mode: 'hermes_telegram', status: 'not_configured', hasSecret: false, endpoint: null, botId: null });
+    expect(selectActiveOrchestratorConfig(state)).toMatchObject({ mode: 'hermes_telegram', status: 'not_configured', hasSecret: false, endpoint: null, connectionId: null, botId: null });
   });
 
   it('validation rejects a payload smuggling a secret/token/apiKey field', () => {

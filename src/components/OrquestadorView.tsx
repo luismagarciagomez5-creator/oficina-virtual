@@ -1,6 +1,12 @@
 import { useState } from 'react';
-import { Plug } from 'lucide-react';
-import type { OrchestratorConnectionStatus, OrchestratorMode, OrchestratorMutationErrorCode } from '../central-orchestrator';
+import { MessageCircle, Mic, Plug, UsersRound } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import type {
+  HermesTelegramConfig,
+  OrchestratorConnectionStatus,
+  OrchestratorMode,
+  OrchestratorMutationErrorCode,
+} from '../central-orchestrator';
 import type { OrchestratorFeed } from '../hooks/useOrchestratorFeed';
 import {
   ORCHESTRATOR_ERROR_LABEL_ES,
@@ -16,11 +22,22 @@ import ViewHeader from './ui/ViewHeader';
 // Codex's central-integrations/). See COORDINACION_CLAUDE_CODEX.md.
 //
 // This screen only records non-secret configuration (bot id, model name)
-// and which mode is active. It has no field anywhere for a token/API
-// key/secret — those stay backend-only by construction (validation.ts
-// rejects them) — and no field to hand-type the Hermes bridge endpoint
-// either: that address is provisioned and reported by the backend, shown
-// here read-only. No real connection is attempted here yet.
+// and which mode is active. Hermes has four distinct pieces of state and
+// this view is careful never to blur them together:
+// - botId: identified by the admin, right here.
+// - endpoint: provisioned by the backend (the bridge address) — read-only.
+// - connectionId: provisioned by the backend as the authenticated bridge
+//   connection — read-only, not a secret, but not admin-editable either.
+// - hasSecret: whether a token exists in the backend — shown as a
+//   presence indicator only, its value is never fetched or rendered here.
+// No real connection is attempted here yet.
+//
+// "Canales de mando" below is purely descriptive — it explains that Hermes
+// can take orders over direct chat, a group chat with the bot, or voice.
+// It derives its two "live-ish" hints from data already in the binding
+// (bridge/connection readiness, whether a bot is identified) instead of
+// inventing new state — voice has no backing data anywhere yet, so it's
+// honestly shown as not connected. Nothing here reaches a network.
 
 type Props = { feed: OrchestratorFeed };
 
@@ -64,8 +81,85 @@ function SecretIndicator({ has, label }: { has: boolean; label: string }) {
   return (
     <div className="text-[11px] text-white/40 flex items-center gap-1.5">
       <span className={`w-1.5 h-1.5 rounded-full ${has ? 'bg-emerald-400' : 'bg-white/20'}`} />
-      {label}: {has ? 'configurada desde backend' : 'sin configurar'}
-      <span className="text-white/25">— nunca se escribe desde esta pantalla.</span>
+      {label}: {has ? 'presente en backend' : 'sin configurar'}
+      <span className="text-white/25">— nunca se lee ni se escribe desde esta pantalla.</span>
+    </div>
+  );
+}
+
+/** A read-only piece of backend-provisioned state (never admin-editable, never a secret value). */
+function BackendStatusRow({
+  label,
+  value,
+  readyLabel,
+  emptyHint,
+}: {
+  label: string;
+  value: string | null;
+  readyLabel: string;
+  emptyHint: string;
+}) {
+  return (
+    <div className="text-[11px] text-white/40 flex items-center gap-1.5">
+      <span className={`w-1.5 h-1.5 rounded-full ${value ? 'bg-emerald-400' : 'bg-white/20'}`} />
+      {label}: <span className={value ? 'text-white/65' : ''}>{value ? readyLabel : emptyHint}</span>
+    </div>
+  );
+}
+
+type CommandChannel = {
+  icon: LucideIcon;
+  label: string;
+  description: string;
+  available: boolean;
+  statusLabel: string;
+};
+
+function commandChannels(hermes: HermesTelegramConfig): CommandChannel[] {
+  const bridgeReady = Boolean(hermes.endpoint && hermes.connectionId);
+  return [
+    {
+      icon: MessageCircle,
+      label: 'Chat directo',
+      description: 'Conversación 1:1 con Hermes.',
+      available: bridgeReady,
+      statusLabel: bridgeReady ? 'Vía bridge autenticado' : 'Pendiente del bridge',
+    },
+    {
+      icon: UsersRound,
+      label: 'Grupo con bot',
+      description: 'Un grupo donde participa el bot identificado arriba.',
+      available: Boolean(hermes.botId),
+      statusLabel: hermes.botId ? 'Bot identificado' : 'Sin bot identificado',
+    },
+    {
+      icon: Mic,
+      label: 'Voz',
+      description: 'Órdenes por voz, cuando el backend lo habilite.',
+      available: false,
+      statusLabel: 'Sin conectar todavía',
+    },
+  ];
+}
+
+function ChannelRow({ channel }: { channel: CommandChannel }) {
+  const Icon = channel.icon;
+  return (
+    <div className="flex items-start gap-2.5">
+      <span
+        className={`shrink-0 mt-0.5 w-6 h-6 rounded-md border flex items-center justify-center ${
+          channel.available ? 'border-emerald-500/25 bg-emerald-500/[0.06] text-emerald-300/80' : 'border-white/10 bg-white/[0.03] text-white/35'
+        }`}
+      >
+        <Icon size={13} strokeWidth={1.8} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[11px] text-white/75 font-medium">{channel.label}</span>
+          <span className={`text-[10px] ${channel.available ? 'text-emerald-300/70' : 'text-white/30'}`}>{channel.statusLabel}</span>
+        </div>
+        <p className="text-[10px] text-white/35 mt-0.5">{channel.description}</p>
+      </div>
     </div>
   );
 }
@@ -84,14 +178,14 @@ export default function OrquestadorView({ feed }: Props) {
         icon={Plug}
         eyebrow="Oficina Virtual · Solo superadministración"
         title="Conexión del Orquestador"
-        description="Elige cómo piensa el Coordinador de este workspace: con su propio modelo (OpenRouter) o delegando en Hermes por Telegram. Ningún secreto se gestiona desde aquí."
+        description="Elige cómo se orquesta este workspace: con un modelo propio vía OpenRouter o delegando en Hermes como Orquestador externo. Ningún secreto se gestiona desde aquí."
         guide={{
           title: 'Antes de activar un modo',
           items: [
             'OpenRouter: el Coordinador de la oficina responde por sí mismo con un modelo real.',
-            'Hermes por Telegram: Hermes es el Orquestador — Telegram → Hermes → Oficina Virtual → especialistas/canales → destino final.',
-            'Telegram es solo el canal de órdenes ejecutivas del CEO hacia Hermes (y, cuando conviene, confirmaciones/aprobaciones) — nunca el destino obligatorio de un resultado: una propuesta puede terminar enviada por WhatsApp vía YCloud sin pasar de nuevo por Hermes/Telegram.',
-            'Identificador de bot y modelo no son secretos y se pueden editar aquí; el endpoint del bridge, tokens y API keys los gestiona el backend, jamás esta pantalla.',
+            'Hermes: Hermes es el Orquestador externo y puede recibir órdenes por chat directo, grupo de Telegram con el bot incluido o voz.',
+            'El canal de mando solo indica por dónde entra la orden. Nunca es el destino obligatorio del resultado: una propuesta puede terminar enviada por WhatsApp vía YCloud sin volver al canal de mando.',
+            'Identificador de bot y modelo se editan aquí. El bridge (endpoint) y la conexión autenticada los aprovisiona el backend — no son secretos, pero tampoco son editables desde esta pantalla. Tokens y API keys ni se editan ni se muestran nunca: solo se indica si ya existen.',
           ],
         }}
       />
@@ -143,29 +237,24 @@ export default function OrquestadorView({ feed }: Props) {
 
         <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
           <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">Hermes por Telegram</div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">Hermes como Orquestador</div>
             <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${ORCHESTRATOR_STATUS_TW[binding.hermesTelegram.status]}`}>
               {ORCHESTRATOR_STATUS_LABEL_ES[binding.hermesTelegram.status]}
             </span>
           </div>
           <p className="text-[11px] text-white/35 mb-3 leading-relaxed">
-            Hoy Hermes solo existe en Telegram. El bridge (endpoint HTTP) lo aprovisiona y reporta el backend cuando exista — esta pantalla
-            nunca pide pegarlo a mano, así funcione igual para tu workspace que para el de cualquier cliente futuro.
+            Hermes puede recibir órdenes por chat directo, por un grupo donde está incluido el bot o por voz cuando el backend lo habilite.
+            Para la variante Telegram identificas qué bot pertenece al workspace; el bridge, la conexión autenticada y el token los
+            aprovisiona y reporta el backend.
           </p>
-          <label className="text-[10px] uppercase tracking-wide text-white/30">Identificador del bot</label>
+          <label className="text-[10px] uppercase tracking-wide text-white/30">Bot de Telegram (si aplica)</label>
           <input
             value={botIdDraft}
             onChange={(e) => setBotIdDraft(e.target.value)}
             placeholder="@tu_bot"
             className="onyx-input w-full rounded-md px-3 py-2 text-xs mt-1"
           />
-          <div className="text-[11px] text-white/40 flex items-center gap-1.5 mt-3">
-            <span className={`w-1.5 h-1.5 rounded-full ${binding.hermesTelegram.endpoint ? 'bg-emerald-400' : 'bg-white/20'}`} />
-            Endpoint: {binding.hermesTelegram.endpoint ?? 'aún no aprovisionado'}
-            <span className="text-white/25">— lo gestiona el backend, no esta pantalla.</span>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-2 gap-2">
-            <SecretIndicator has={binding.hermesTelegram.hasSecret} label="Token del bot" />
+          <div className="flex items-center justify-end mt-1.5">
             <button
               onClick={() => feed.updateHermesBotId(botIdDraft.trim() || null)}
               disabled={!hermesDirty}
@@ -173,6 +262,30 @@ export default function OrquestadorView({ feed }: Props) {
             >
               Guardar identificador
             </button>
+          </div>
+
+          <div className="rounded-md border border-white/[0.05] bg-black/20 p-3 mt-3 space-y-2.5">
+            <div className="text-[9px] uppercase tracking-[0.14em] text-white/30">Canales de mando · descriptivo, sin conexión real</div>
+            {commandChannels(binding.hermesTelegram).map((channel) => (
+              <ChannelRow key={channel.label} channel={channel} />
+            ))}
+          </div>
+
+          <div className="rounded-md border border-white/[0.05] bg-black/20 p-3 mt-3 space-y-2">
+            <div className="text-[9px] uppercase tracking-[0.14em] text-white/30">Gestionado por el backend — no editable aquí</div>
+            <BackendStatusRow
+              label="Bridge"
+              value={binding.hermesTelegram.endpoint}
+              readyLabel="aprovisionado por backend"
+              emptyHint="aún no aprovisionado"
+            />
+            <BackendStatusRow
+              label="Conexión autenticada"
+              value={binding.hermesTelegram.connectionId}
+              readyLabel="autenticada por backend"
+              emptyHint="sin conexión autenticada todavía"
+            />
+            <SecretIndicator has={binding.hermesTelegram.hasSecret} label="Token del bot" />
           </div>
         </div>
       </div>

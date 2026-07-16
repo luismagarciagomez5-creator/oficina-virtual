@@ -34,9 +34,12 @@ campaña, Revisión/QA la valida y el agente de WhatsApp la envía mediante YClo
 ## Entrada segura desde Hermes
 
 Toda orden debe incluir un identificador idempotente, workspace, conexión
-autenticada, conversación, especialista, instrucciones y acciones solicitadas.
+autenticada, canal de mando, conversación, especialista, instrucciones y
+acciones solicitadas.
 
 - Hermes delega trabajo especializado en `proposal`, `operations`, `content` y `review-qa`.
+- El canal de mando puede ser `telegram_private`, `telegram_group` o `voice`: algunas empresas hablarán con Hermes por voz y otras, como ONYXLINK, trabajarán en un grupo de Telegram donde el bot está incluido.
+- La conexión autenticada se deriva de `WorkspaceOrchestratorBinding.hermesTelegram`: modo activo `hermes_telegram`, estado `connected`, `hasSecret`, endpoint backend y `connectionId` opaco reportado por backend.
 - Coordinador, WhatsApp y Voz son puestos protegidos; los canales ejecutan las acciones finales autorizadas.
 - La configuración de la oficina debe estar publicada.
 - Las acciones deben estar permitidas para el especialista.
@@ -45,6 +48,8 @@ autenticada, conversación, especialista, instrucciones y acciones solicitadas.
 - Los eventos y resultados deben conservar `dispatchId`, `conversationId`, `taskId` y workspace para mantener trazabilidad, aunque no regresen a Telegram.
 
 El contrato inicial está en `src/central-orchestration/hermes-dispatch.ts`.
+La frontera pura para el futuro bridge es `acceptHermesSpecialistDispatch(...)`: valida el modo Hermes del workspace, resuelve la conexión autenticada y materializa una tarea idempotente sin HTTP, Telegram ni Supabase reales.
+El contrato backend normalizado es `handleHermesBridgeRequest(...)`: recibe `HermesBridgeRequest`, separa errores del sobre (`invalid_bridge_request`) de errores de la orden (`invalid_dispatch`), verifica `authenticatedConnectionId` y responde `accepted`, `duplicate` o `rejected`.
 
 La conexión técnica se gestiona desde backend. El administrador no debe tener
 que pegar manualmente un endpoint interno: la interfaz muestra bot, workspace,

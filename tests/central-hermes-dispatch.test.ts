@@ -5,7 +5,13 @@ import {
   createOfficeConfigurationState,
 } from '../src/central-integrations/configuration';
 import type { OfficeConfigurationDocument } from '../src/central-integrations/configuration';
-import { materializeHermesDispatchTask } from '../src/central-orchestration';
+import {
+  acceptHermesSpecialistDispatch,
+  handleHermesBridgeRequest,
+  materializeHermesDispatchTask,
+  resolveHermesDispatchBinding,
+} from '../src/central-orchestration';
+import type { WorkspaceOrchestratorBinding } from '../src/central-orchestrator';
 import { createCentralTaskState } from '../src/central-tasks';
 
 const WORKSPACE_ID = 'workspace-demo';
@@ -50,7 +56,325 @@ function dispatch(overrides: Record<string, unknown> = {}) {
 
 const binding = { connectionId: 'hermes-onyxlink', workspaceId: WORKSPACE_ID, enabled: true };
 
+function bridgeRequest(overrides: Record<string, unknown> = {}) {
+  return {
+    requestId: 'bridge-request-1',
+    authenticatedConnectionId: 'hermes-onyxlink',
+    receivedAt: NOW,
+    dispatch: dispatch(),
+    ...overrides,
+  };
+}
+
+function orchestratorBinding(overrides: Partial<WorkspaceOrchestratorBinding> = {}): WorkspaceOrchestratorBinding {
+  return {
+    workspaceId: WORKSPACE_ID,
+    activeMode: 'hermes_telegram',
+    revision: 4,
+    openrouter: {
+      mode: 'openrouter',
+      model: null,
+      status: 'not_configured',
+      hasApiKey: false,
+      statusDetail: null,
+      updatedAt: NOW,
+      updatedBy: 'system',
+    },
+    hermesTelegram: {
+      mode: 'hermes_telegram',
+      endpoint: 'https://bridge.onyxlink.example/hermes',
+      connectionId: 'hermes-onyxlink',
+      botId: '@onyxlink_bot',
+      status: 'connected',
+      hasSecret: true,
+      statusDetail: null,
+      updatedAt: NOW,
+      updatedBy: 'system',
+    },
+    ...overrides,
+  };
+}
+
 describe('Hermes to specialist dispatch boundary', () => {
+  it('normalizes a backend bridge request into an accepted response', () => {
+    const result = handleHermesBridgeRequest(
+      createCentralTaskState(WORKSPACE_ID),
+      publishedConfiguration(),
+      orchestratorBinding(),
+      bridgeRequest(),
+    );
+    expect(result).toMatchObject({
+      status: 'accepted',
+      requestId: 'bridge-request-1',
+      receipt: {
+        dispatchId: 'dispatch-1',
+        commandChannel: 'telegram_private',
+        taskId: 'hermes-dispatch-task:dispatch-1',
+      },
+      task: { assignedAgentId: 'proposal' },
+    });
+  });
+
+  it('normalizes Hermes retries as duplicate bridge responses', () => {
+    const first = handleHermesBridgeRequest(
+      createCentralTaskState(WORKSPACE_ID),
+      publishedConfiguration(),
+      orchestratorBinding(),
+      bridgeRequest(),
+    );
+    if (first.status === 'rejected') throw new Error(first.code);
+
+    const retry = handleHermesBridgeRequest(
+      first.state,
+      publishedConfiguration(),
+      orchestratorBinding(),
+      bridgeRequest(),
+    );
+    expect(retry).toMatchObject({
+      status: 'duplicate',
+      requestId: 'bridge-request-1',
+      receipt: { taskId: 'hermes-dispatch-task:dispatch-1' },
+    });
+    if (retry.status !== 'rejected') expect(Object.keys(retry.state.tasks)).toHaveLength(1);
+  });
+
+  it('preserves Telegram group and voice command channels in bridge receipts', () => {
+    const group = handleHermesBridgeRequest(
+      createCentralTaskState(WORKSPACE_ID),
+      publishedConfiguration(),
+      orchestratorBinding(),
+      bridgeRequest({
+        requestId: 'bridge-request-group',
+        dispatch: dispatch({
+          commandChannel: 'telegram_group',
+          conversationId: 'telegram-group:onyxlink-direccion',
+        }),
+      }),
+    );
+    expect(group).toMatchObject({
+      status: 'accepted',
+      receipt: {
+        commandChannel: 'telegram_group',
+        conversationId: 'telegram-group:onyxlink-direccion',
+      },
+    });
+
+    const voice = handleHermesBridgeRequest(
+      createCentralTaskState(WORKSPACE_ID),
+      publishedConfiguration(),
+      orchestratorBinding(),
+      bridgeRequest({
+        requestId: 'bridge-request-voice',
+        dispatch: dispatch({
+          commandChannel: 'voice',
+          conversationId: 'voice-command:luis:2026-07-16T10:00:00.000Z',
+        }),
+      }),
+    );
+    expect(voice).toMatchObject({
+      status: 'accepted',
+      receipt: { commandChannel: 'voice', targetAgentId: 'proposal' },
+      task: { assignedAgentId: 'proposal' },
+    });
+  });
+
+  it('rejects bridge requests with invalid envelopes, dispatches or forged backend authentication', () => {
+    expect(handleHermesBridgeRequest(
+      createCentralTaskState(WORKSPACE_ID),
+      publishedConfiguration(),
+      orchestratorBinding(),
+      { ...bridgeRequest(), receivedAt: '' },
+    )).toMatchObject({ status: 'rejected', requestId: 'bridge-request-1', code: 'invalid_bridge_request' });
+
+    expect(handleHermesBridgeRequest(
+      createCentralTaskState(WORKSPACE_ID),
+      publishedConfiguration(),
+      orchestratorBinding(),
+      { ...bridgeRequest(), dispatch: { ...dispatch(), commandChannel: 'sms' } },
+    )).toMatchObject({ status: 'rejected', requestId: 'bridge-request-1', code: 'invalid_dispatch' });
+
+    expect(handleHermesBridgeRequest(
+      createCentralTaskState(WORKSPACE_ID),
+      publishedConfiguration(),
+      orchestratorBinding(),
+      { ...bridgeRequest(), authenticatedConnectionId: 'forged' },
+    )).toEqual({ status: 'rejected', requestId: 'bridge-request-1', code: 'connection_mismatch' });
+  });
+
+  it('returns clear bridge rejections for workspace mismatch and invalid dispatch payloads', () => {
+    expect(handleHermesBridgeRequest(
+      createCentralTaskState(WORKSPACE_ID),
+      publishedConfiguration(),
+      orchestratorBinding({ workspaceId: 'workspace-other' }),
+      bridgeRequest(),
+    )).toEqual({ status: 'rejected', requestId: 'bridge-request-1', code: 'workspace_mismatch' });
+
+    expect(handleHermesBridgeRequest(
+      createCentralTaskState(WORKSPACE_ID),
+      publishedConfiguration(),
+      orchestratorBinding(),
+      bridgeRequest({ dispatch: dispatch({ instructions: '' }) }),
+    )).toMatchObject({
+      status: 'rejected',
+      requestId: 'bridge-request-1',
+      code: 'invalid_dispatch',
+    });
+  });
+
+  it('accepts a bridge dispatch by resolving Hermes mode, authenticating the envelope and creating a task', () => {
+    const result = acceptHermesSpecialistDispatch(
+      createCentralTaskState(WORKSPACE_ID),
+      publishedConfiguration(),
+      orchestratorBinding(),
+      dispatch(),
+    );
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.task).toMatchObject({
+      id: 'hermes-dispatch-task:dispatch-1',
+      assignedAgentId: 'proposal',
+      source: 'automation',
+      requiresApproval: false,
+    });
+    expect(result.receipt).toMatchObject({
+      status: 'accepted',
+      commandChannel: 'telegram_private',
+      taskId: 'hermes-dispatch-task:dispatch-1',
+      targetAgentId: 'proposal',
+    });
+  });
+
+  it('accepts Hermes orders from a Telegram group with the bot included', () => {
+    const result = acceptHermesSpecialistDispatch(
+      createCentralTaskState(WORKSPACE_ID),
+      publishedConfiguration(),
+      orchestratorBinding(),
+      dispatch({
+        commandChannel: 'telegram_group',
+        conversationId: 'telegram-group:onyxlink-direccion',
+      }),
+    );
+    expect(result).toMatchObject({
+      success: true,
+      receipt: {
+        commandChannel: 'telegram_group',
+        conversationId: 'telegram-group:onyxlink-direccion',
+      },
+    });
+  });
+
+  it('accepts Hermes orders from voice command channels without treating Voice as the task destination', () => {
+    const result = acceptHermesSpecialistDispatch(
+      createCentralTaskState(WORKSPACE_ID),
+      publishedConfiguration(),
+      orchestratorBinding(),
+      dispatch({
+        commandChannel: 'voice',
+        conversationId: 'voice-command:luis:2026-07-16T10:00:00.000Z',
+      }),
+    );
+    expect(result).toMatchObject({
+      success: true,
+      task: { assignedAgentId: 'proposal' },
+      receipt: {
+        commandChannel: 'voice',
+        targetAgentId: 'proposal',
+      },
+    });
+  });
+
+  it('keeps the bridge handler idempotent across Hermes retries', () => {
+    const first = acceptHermesSpecialistDispatch(
+      createCentralTaskState(WORKSPACE_ID),
+      publishedConfiguration(),
+      orchestratorBinding(),
+      dispatch(),
+    );
+    if (!first.success) throw new Error(first.code);
+
+    const retry = acceptHermesSpecialistDispatch(
+      first.state,
+      publishedConfiguration(),
+      orchestratorBinding(),
+      dispatch(),
+    );
+    expect(retry).toMatchObject({ success: true, duplicate: true });
+    if (retry.success) expect(Object.keys(retry.state.tasks)).toHaveLength(1);
+  });
+
+  it('blocks bridge dispatches before task creation when Hermes is not the active connected mode', () => {
+    expect(acceptHermesSpecialistDispatch(
+      createCentralTaskState(WORKSPACE_ID),
+      publishedConfiguration(),
+      orchestratorBinding({ activeMode: 'openrouter' }),
+      dispatch(),
+    )).toEqual({ success: false, code: 'orchestrator_not_hermes' });
+
+    expect(acceptHermesSpecialistDispatch(
+      createCentralTaskState(WORKSPACE_ID),
+      publishedConfiguration(),
+      orchestratorBinding({
+        hermesTelegram: { ...orchestratorBinding().hermesTelegram, connectionId: null },
+      }),
+      dispatch(),
+    )).toEqual({ success: false, code: 'hermes_connection_missing' });
+  });
+
+  it('propagates dispatch, office configuration and policy rejections from the secure bridge boundary', () => {
+    const draft = { ...publishedConfiguration(), status: 'draft' as const };
+    expect(acceptHermesSpecialistDispatch(
+      createCentralTaskState(WORKSPACE_ID),
+      draft,
+      orchestratorBinding(),
+      dispatch(),
+    )).toEqual({ success: false, code: 'configuration_not_published' });
+
+    expect(acceptHermesSpecialistDispatch(
+      createCentralTaskState(WORKSPACE_ID),
+      publishedConfiguration(),
+      orchestratorBinding(),
+      dispatch({ instructions: '' }),
+    )).toMatchObject({ success: false, code: 'invalid_dispatch' });
+
+    expect(acceptHermesSpecialistDispatch(
+      createCentralTaskState(WORKSPACE_ID),
+      publishedConfiguration(),
+      orchestratorBinding(),
+      dispatch({ requestedActions: ['send_message'] }),
+    )).toEqual({ success: false, code: 'action_not_allowed' });
+  });
+
+  it('derives the dispatch binding from the active Hermes orchestrator configuration', () => {
+    const result = resolveHermesDispatchBinding(orchestratorBinding(), WORKSPACE_ID);
+    expect(result).toEqual({
+      success: true,
+      binding: {
+        connectionId: 'hermes-onyxlink',
+        workspaceId: WORKSPACE_ID,
+        enabled: true,
+      },
+    });
+  });
+
+  it('keeps incomplete or inactive Hermes configuration from authenticating dispatches', () => {
+    expect(resolveHermesDispatchBinding(orchestratorBinding({ activeMode: 'openrouter' }), WORKSPACE_ID))
+      .toEqual({ success: false, code: 'orchestrator_not_hermes' });
+    expect(resolveHermesDispatchBinding(orchestratorBinding({
+      hermesTelegram: { ...orchestratorBinding().hermesTelegram, status: 'pending' },
+    }), WORKSPACE_ID)).toEqual({ success: false, code: 'hermes_not_connected' });
+    expect(resolveHermesDispatchBinding(orchestratorBinding({
+      hermesTelegram: { ...orchestratorBinding().hermesTelegram, hasSecret: false },
+    }), WORKSPACE_ID)).toEqual({ success: false, code: 'hermes_secret_missing' });
+    expect(resolveHermesDispatchBinding(orchestratorBinding({
+      hermesTelegram: { ...orchestratorBinding().hermesTelegram, endpoint: null },
+    }), WORKSPACE_ID)).toEqual({ success: false, code: 'hermes_endpoint_missing' });
+    expect(resolveHermesDispatchBinding(orchestratorBinding({
+      hermesTelegram: { ...orchestratorBinding().hermesTelegram, connectionId: null },
+    }), WORKSPACE_ID)).toEqual({ success: false, code: 'hermes_connection_missing' });
+    expect(resolveHermesDispatchBinding(orchestratorBinding({ workspaceId: 'workspace-other' }), WORKSPACE_ID))
+      .toEqual({ success: false, code: 'workspace_mismatch' });
+  });
+
   it('materializes an authenticated Hermes order as one specialist task', () => {
     const result = materializeHermesDispatchTask(
       createCentralTaskState(WORKSPACE_ID),
@@ -69,6 +393,7 @@ describe('Hermes to specialist dispatch boundary', () => {
     });
     expect(result.receipt).toMatchObject({
       dispatchId: 'dispatch-1',
+      commandChannel: 'telegram_private',
       conversationId: 'telegram-thread-42',
       approvalRequired: false,
     });

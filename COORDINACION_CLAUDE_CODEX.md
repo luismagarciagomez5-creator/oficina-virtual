@@ -859,3 +859,33 @@ Vi que en paralelo ya empezaste `src/central-orchestration/hermes-dispatch.ts` (
 Verificación: construí un arnés aislado (`verify-orchestrator.html` + entrada temporal, servidos por Vite sin tocar `App.tsx`/`Sidebar.tsx` mientras estaban en plena reescritura concurrente) para probar la vista sin arriesgar una colisión; confirmé con Playwright que no existe ningún input de texto para el endpoint en toda la pantalla. Después, con el wiring real ya aplicado, verifiqué de nuevo dentro de la app completa (sin bypass de login — ya no hace falta, login está quitado): navegación Sidebar → Administración → Orquestador, cambio de modo, guardar modelo/identificador, badges de estado reaccionando en vivo. Cero errores de consola en ambas rondas. Arnés temporal borrado al terminar.
 
 Validación: `tsc`, lint y 24 archivos / 148 pruebas en verde (incluye tus `central-skills`, `central-hermes-dispatch` y `central-voice-outbound`, que vi aparecer mientras trabajaba).
+
+## Bloque de Claude: OrquestadorView refleja el nuevo campo `connectionId`
+
+Luis dio una tarea acotada: cuando volví al repo ya habías reconciliado tú mismo el binding con la entrada segura de `hermes-dispatch` — `HermesTelegramConfig` ganó `connectionId` (`central-orchestrator/types.ts`), el comando `orchestrator.backend_status_reported` ya lo acepta y lo valida como `https://`-opcional-string `.strict()` (`state.ts`/`validation.ts`), y tus pruebas ya cubren que solo `system` puede reportarlo. No toqué nada de eso — ni falta hacía, typecheck salió limpio sin cambiar una línea mía.
+
+Mi encargo era solo la capa visual, con archivos explícitamente acotados (`OrquestadorView.tsx`, `useOrchestratorFeed.ts`, `orchestratorStyles.ts`, `App.tsx` con cuidado). Terminé tocando únicamente `OrquestadorView.tsx` — `useOrchestratorFeed.ts` ya exponía `binding` completo (incluido `connectionId` transitivamente) y `orchestratorStyles.ts` no tenía ningún enum nuevo que etiquetar, así que cambiarlos habría sido tocar por tocar.
+
+- Separé visualmente los cuatro conceptos que pedía Luis: `botId` sigue siendo el único campo con input editable ("Identificador del bot" + botón "Guardar identificador"); `endpoint` y `connectionId` pasaron a una caja de solo lectura nueva ("Gestionado por el backend — no editable aquí") con un `BackendStatusRow` genérico (punto verde/gris + valor o "aún no aprovisionado"/"sin conexión autenticada todavía"); `hasSecret` sigue siendo `SecretIndicator`, ahora con el texto ajustado a "nunca se lee ni se escribe desde esta pantalla" (antes solo decía "nunca se escribe", y técnicamente tampoco se lee el valor real, así que lo dejé exacto).
+- Reescribí el párrafo explicativo del panel Hermes y el último ítem de la guía del `ViewHeader` para nombrar los tres roles por separado (admin identifica el bot; backend aprovisiona bridge y conexión autenticada; token nunca se edita ni se muestra) en vez de agruparlos vagamente como antes.
+- Nadie puede editar `endpoint` ni `connectionId` desde la interfaz — no hay ningún `<input>` para ninguno de los dos, solo texto derivado de `binding.hermesTelegram`.
+
+Verificación: reutilicé el dev server real (ya sin bypass de login) para el estado "sin aprovisionar" de tu fixture, y armé un segundo arnés aislado con un `OrchestratorFeed` simulado en memoria (`endpoint`/`connectionId`/`hasSecret: true`, sin tocar tu reducer ni Supabase) servido por Vite en una ruta temporal, para comprobar cómo se ve la caja de solo lectura con valores reales largos — badges "Conectado", bridge y connectionId con punto verde y el texto completo, sin overflow ni en escritorio (1100px) ni en móvil (390px). Cero errores de consola en las tres rondas (real sin aprovisionar, mock aprovisionado, mock móvil). Arneses y capturas borrados al terminar.
+
+Validación: `tsc`, lint, 24 archivos / 154 pruebas (subieron desde 148 por tus nuevas pruebas de `connectionId`) y `npm run build` en verde. No toqué `central-orchestration/`, `central-orchestrator/` ni ningún test.
+
+Sigo bloqueado a propósito en lo que dijo Luis: nada de OpenRouter real, bridge HTTP, Supabase ni cambios de navegación/nombres de agentes hasta que ambas tareas queden cerradas.
+
+## Bloque de Claude: sección "Canales de mando" (chat directo, grupo con bot, voz)
+
+Tarea en paralelo de Luis: mostrar que Hermes admite chat directo, grupo con bot y voz, con una pequeña sección de estado, sin conectar nada real y sin tocar `central-orchestration/`.
+
+Cuando volví al archivo ya lo habías renombrado tú (`hermes_telegram` pasó de "Hermes por Telegram" a "Hermes como Orquestador", con la descripción ya mencionando los tres canales) — construí sobre esa base, no encima de la mía vieja.
+
+- `src/components/OrquestadorView.tsx`: nueva caja "Canales de mando · descriptivo, sin conexión real" dentro del panel Hermes, entre el input de bot y la caja "Gestionado por el backend". Tres filas (`ChatDirecto`/`GrupoConBot`/`Voz`) con icono, descripción y una etiqueta de estado — **derivadas de datos que ya existían en `binding.hermesTelegram`, sin añadir ningún campo nuevo**: "Chat directo" se marca disponible solo si `endpoint` y `connectionId` están presentes ("vía bridge autenticado"); "Grupo con bot" se marca disponible si hay `botId` (reutiliza el mismo campo que ya edita el admin arriba — lo comprobé en vivo: al guardar el identificador, esa fila pasa de gris a verde sin recargar nada); "Voz" queda siempre "Sin conectar todavía" porque no existe ningún dato real que lo respalde todavía — no inventé una conexión de voz.
+- No toqué `useOrchestratorFeed.ts` (no hacía falta ningún dato nuevo del hook) ni `App.tsx` (la vista ya estaba conectada). Tampoco `central-orchestration/` ni `central-orchestrator/`.
+- Nota de concurrencia: mientras escribía esto, dos ediciones tuyas se cruzaron con las mías y me pisaron el import de iconos de lucide-react a mitad de camino (dos veces). Terminé releyendo el archivo completo y escribiéndolo de una sola vez para no seguir perdiendo cambios contra ediciones tan seguidas — quedó todo tuyo intacto (el renombrado a "Hermes como Orquestador", los `readyLabel`/`emptyHint` de `BackendStatusRow`) más mi sección nueva.
+
+Verificación: dev server real, sin bypass de login. Probé el estado inicial (los tres canales sin datos: "Pendiente del bridge" / "Sin bot identificado" / "Sin conectar todavía"), y guardé un identificador de bot en vivo para confirmar que "Grupo con bot" reacciona de inmediato. Full-page screenshot en escritorio (1280px) y móvil (390px) sin overlaps ni cortes. Cero errores de consola.
+
+Validación: `tsc`, lint, 24 archivos / 161 pruebas y `npm run build` en verde.
