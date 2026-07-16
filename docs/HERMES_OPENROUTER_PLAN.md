@@ -50,6 +50,7 @@ acciones solicitadas.
 El contrato inicial está en `src/central-orchestration/hermes-dispatch.ts`.
 La frontera pura para el futuro bridge es `acceptHermesSpecialistDispatch(...)`: valida el modo Hermes del workspace, resuelve la conexión autenticada y materializa una tarea idempotente sin HTTP, Telegram ni Supabase reales.
 El contrato backend normalizado es `handleHermesBridgeRequest(...)`: recibe `HermesBridgeRequest`, separa errores del sobre (`invalid_bridge_request`) de errores de la orden (`invalid_dispatch`), verifica `authenticatedConnectionId` y responde `accepted`, `duplicate` o `rejected`.
+El estado de una orden se consulta con `selectHermesBridgeDispatchStatus(...)` y los callbacks/entregas del bridge se registran con `recordHermesBridgeResultEvent(...)`; ambos conservan `dispatchId`, `conversationId`, `taskId`, `workspaceId` y `commandChannel` sin enviar nada real al canal de mando.
 
 La conexión técnica se gestiona desde backend. El administrador no debe tener
 que pegar manualmente un endpoint interno: la interfaz muestra bot, workspace,
@@ -84,6 +85,23 @@ puesto:
 - Longitud máxima de respuesta y parámetros permitidos.
 - Permiso para utilizar modelos de coste elevado.
 - Consumo, coste, latencia y tasa de éxito por agente.
+
+El contrato puro inicial ya vive en `src/central-orchestrator/`: `OpenRouterConfig`
+mantiene el modelo predeterminado del workspace, fallback, perfil de coste,
+límites diarios/mensuales, permiso premium y overrides por `AgentId`. El selector
+`selectOpenRouterModelForAgent(...)` resuelve el modelo efectivo de cada puesto y
+devuelve bloqueos explícitos (`api_key_missing`, `model_missing`,
+`premium_not_allowed`) sin llamar a OpenRouter ni transportar API keys.
+
+El preflight backend inicial ya vive en `src/central-orchestration/openrouter-run.ts`:
+`prepareOpenRouterAgentRun(...)` recibe una `OpenRouterRunRequest`, exige workspace
+correcto, `activeMode: openrouter`, estado `connected` y modelo resuelto listo. Si
+todo está preparado devuelve `PreparedOpenRouterRun` con `runId`, `workspaceId`,
+`agentId`, entrada, contexto, modelo/fallback, perfil de coste, límites y trazabilidad
+para el backend. La salida no transporta API key, token, secret, streaming, prompt
+real, coste real ni logs de tokens. Los rechazos son explícitos:
+`workspace_mismatch`, `orchestrator_not_openrouter`, `openrouter_not_connected`,
+`api_key_missing`, `model_missing`, `premium_not_allowed` o `invalid_run_request`.
 
 El Orquestador interno también puede tener su propio modelo. En modo Hermes,
 Hermes organiza el trabajo, pero cada especialista continúa ejecutando con el

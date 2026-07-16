@@ -3,6 +3,7 @@ import {
   applyOrchestratorCommand,
   createCentralOrchestratorState,
   createOrchestratorFixtures,
+  selectOpenRouterModelForAgent,
   selectActiveOrchestratorConfig,
   selectOrchestratorAudit,
   validateOrchestratorCommand,
@@ -97,6 +98,153 @@ describe('central orchestrator', () => {
     expect(state.binding.openrouter).toMatchObject({ hasApiKey: true, status: 'connected' });
   });
 
+  it('stores workspace OpenRouter model policy without carrying secrets', () => {
+    const state = apply(createCentralOrchestratorState(WORKSPACE_ID), {
+      type: 'orchestrator.openrouter_model_policy_updated',
+      commandId: 'cmd-1',
+      workspaceId: WORKSPACE_ID,
+      actor: ADMIN,
+      occurredAt: '2026-07-16T09:00:00.000Z',
+      expectedRevision: 1,
+      model: 'anthropic/claude-sonnet-4.5',
+      fallbackModel: 'openai/gpt-4.1-mini',
+      costProfile: 'balanced',
+      dailyRequestLimit: 500,
+      monthlyRequestLimit: 10_000,
+      allowPremiumModels: false,
+    });
+    expect(state.binding.openrouter).toMatchObject({
+      model: 'anthropic/claude-sonnet-4.5',
+      fallbackModel: 'openai/gpt-4.1-mini',
+      costProfile: 'balanced',
+      dailyRequestLimit: 500,
+      monthlyRequestLimit: 10_000,
+      allowPremiumModels: false,
+      hasApiKey: false,
+    });
+  });
+
+  it('resolves OpenRouter defaults and agent overrides without inventing an API key', () => {
+    let state = createCentralOrchestratorState(WORKSPACE_ID);
+    state = apply(state, {
+      type: 'orchestrator.openrouter_model_policy_updated',
+      commandId: 'cmd-1',
+      workspaceId: WORKSPACE_ID,
+      actor: ADMIN,
+      occurredAt: '2026-07-16T09:00:00.000Z',
+      expectedRevision: 1,
+      model: 'anthropic/claude-sonnet-4.5',
+      fallbackModel: 'openai/gpt-4.1-mini',
+      costProfile: 'balanced',
+      dailyRequestLimit: 500,
+      monthlyRequestLimit: 10_000,
+      allowPremiumModels: false,
+    });
+    state = apply(state, {
+      type: 'orchestrator.openrouter_agent_override_updated',
+      commandId: 'cmd-2',
+      workspaceId: WORKSPACE_ID,
+      actor: ADMIN,
+      occurredAt: '2026-07-16T09:05:00.000Z',
+      expectedRevision: 2,
+      agentId: 'proposal',
+      override: {
+        model: 'anthropic/claude-opus-4.1',
+        fallbackModel: 'anthropic/claude-sonnet-4.5',
+        costProfile: 'premium',
+        dailyRequestLimit: 50,
+        allowPremiumModels: true,
+      },
+    });
+
+    expect(selectOpenRouterModelForAgent(state.binding, 'operations')).toMatchObject({
+      source: 'workspace_default',
+      model: 'anthropic/claude-sonnet-4.5',
+      fallbackModel: 'openai/gpt-4.1-mini',
+      ready: false,
+      blockers: ['api_key_missing'],
+    });
+    expect(selectOpenRouterModelForAgent(state.binding, 'proposal')).toMatchObject({
+      source: 'agent_override',
+      model: 'anthropic/claude-opus-4.1',
+      fallbackModel: 'anthropic/claude-sonnet-4.5',
+      costProfile: 'premium',
+      dailyRequestLimit: 50,
+      monthlyRequestLimit: 10_000,
+      allowPremiumModels: true,
+      ready: false,
+      blockers: ['api_key_missing'],
+    });
+  });
+
+  it('marks missing models and premium profiles without permission as not ready', () => {
+    let state = createCentralOrchestratorState(WORKSPACE_ID);
+    state = apply(state, {
+      type: 'orchestrator.openrouter_model_policy_updated',
+      commandId: 'cmd-1',
+      workspaceId: WORKSPACE_ID,
+      actor: ADMIN,
+      occurredAt: '2026-07-16T09:00:00.000Z',
+      expectedRevision: 1,
+      model: '   ',
+      costProfile: 'premium',
+      allowPremiumModels: false,
+    });
+    state = apply(state, {
+      type: 'orchestrator.backend_status_reported',
+      commandId: 'cmd-2',
+      workspaceId: WORKSPACE_ID,
+      actor: SYSTEM,
+      occurredAt: '2026-07-16T09:01:00.000Z',
+      expectedRevision: 2,
+      mode: 'openrouter',
+      hasSecret: true,
+      status: 'connected',
+      statusDetail: null,
+    });
+    expect(selectOpenRouterModelForAgent(state.binding, 'coordinator')).toMatchObject({
+      model: null,
+      ready: false,
+      blockers: ['model_missing', 'premium_not_allowed'],
+    });
+  });
+
+  it('rejects invalid OpenRouter model limits and can clear an agent override', () => {
+    const invalid = applyOrchestratorCommand(createCentralOrchestratorState(WORKSPACE_ID), {
+      type: 'orchestrator.openrouter_model_policy_updated',
+      commandId: 'cmd-1',
+      workspaceId: WORKSPACE_ID,
+      actor: ADMIN,
+      occurredAt: '2026-07-16T09:00:00.000Z',
+      expectedRevision: 1,
+      dailyRequestLimit: 0,
+    });
+    expect(invalid).toEqual({ success: false, code: 'invalid_model_policy' });
+
+    let state = apply(createCentralOrchestratorState(WORKSPACE_ID), {
+      type: 'orchestrator.openrouter_agent_override_updated',
+      commandId: 'cmd-2',
+      workspaceId: WORKSPACE_ID,
+      actor: ADMIN,
+      occurredAt: '2026-07-16T09:00:00.000Z',
+      expectedRevision: 1,
+      agentId: 'content',
+      override: { model: 'openai/gpt-4.1-mini' },
+    });
+    expect(state.binding.openrouter.agentOverrides.content?.model).toBe('openai/gpt-4.1-mini');
+    state = apply(state, {
+      type: 'orchestrator.openrouter_agent_override_updated',
+      commandId: 'cmd-3',
+      workspaceId: WORKSPACE_ID,
+      actor: ADMIN,
+      occurredAt: '2026-07-16T09:05:00.000Z',
+      expectedRevision: 2,
+      agentId: 'content',
+      override: null,
+    });
+    expect(state.binding.openrouter.agentOverrides.content).toBeUndefined();
+  });
+
   it('rejects a stale revision and a workspace mismatch', () => {
     const state = createCentralOrchestratorState(WORKSPACE_ID);
     const stale = applyOrchestratorCommand(state, {
@@ -136,5 +284,17 @@ describe('central orchestrator', () => {
       occurredAt: '2026-07-16T09:00:00.000Z', expectedRevision: 1, model: 'anthropic/claude-sonnet-4.5', apiKey: 'sk-should-be-rejected',
     });
     expect(attempt.success).toBe(false);
+
+    const overrideAttempt = validateOrchestratorCommand({
+      type: 'orchestrator.openrouter_agent_override_updated',
+      commandId: 'cmd-2',
+      workspaceId: WORKSPACE_ID,
+      actor: ADMIN,
+      occurredAt: '2026-07-16T09:00:00.000Z',
+      expectedRevision: 1,
+      agentId: 'proposal',
+      override: { model: 'anthropic/claude-sonnet-4.5', apiKey: 'sk-should-also-be-rejected' },
+    });
+    expect(overrideAttempt.success).toBe(false);
   });
 });

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AgentIdSchema } from '../../schemas';
 import type { OrchestratorCommand } from './types';
 
 const Id = z.string().trim().min(1).max(300);
@@ -11,13 +12,40 @@ const Actor = z
   })
   .strict();
 const Base = z.object({ commandId: Id, workspaceId: Id, actor: Actor, occurredAt: Iso, expectedRevision: z.number().int().positive() });
+const Model = z.string().trim().max(200).nullable();
+const CostProfile = z.enum(['economy', 'balanced', 'premium']);
+const Limit = z.number().int().positive().nullable();
 
 // `.strict()` on every variant below means a payload carrying `apiKey`,
 // `token`, `secret`, or any other unknown field is rejected outright — this
 // contract cannot structurally carry a real credential, by construction.
 export const OrchestratorCommandSchema = z.discriminatedUnion('type', [
   Base.extend({ type: z.literal('orchestrator.mode_selected'), mode: z.enum(['openrouter', 'hermes_telegram']) }).strict(),
-  Base.extend({ type: z.literal('orchestrator.openrouter_config_updated'), model: z.string().trim().max(200).nullable() }).strict(),
+  Base.extend({ type: z.literal('orchestrator.openrouter_config_updated'), model: Model }).strict(),
+  Base.extend({
+    type: z.literal('orchestrator.openrouter_model_policy_updated'),
+    model: Model.optional(),
+    fallbackModel: Model.optional(),
+    costProfile: CostProfile.optional(),
+    dailyRequestLimit: Limit.optional(),
+    monthlyRequestLimit: Limit.optional(),
+    allowPremiumModels: z.boolean().optional(),
+  }).strict(),
+  Base.extend({
+    type: z.literal('orchestrator.openrouter_agent_override_updated'),
+    agentId: AgentIdSchema,
+    override: z
+      .object({
+        model: Model.optional(),
+        fallbackModel: Model.optional(),
+        costProfile: CostProfile.nullable().optional(),
+        dailyRequestLimit: Limit.optional(),
+        monthlyRequestLimit: Limit.optional(),
+        allowPremiumModels: z.boolean().nullable().optional(),
+      })
+      .strict()
+      .nullable(),
+  }).strict(),
   Base.extend({
     type: z.literal('orchestrator.hermes_bot_updated'),
     botId: z.string().trim().max(200).nullable(),

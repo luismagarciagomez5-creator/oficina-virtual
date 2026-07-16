@@ -24,6 +24,8 @@ function hermesBinding(overrides: Partial<WorkspaceOrchestratorBinding> = {}): W
     revision: 4,
     openrouter: {
       mode: 'openrouter', model: null, status: 'not_configured', hasApiKey: false,
+      fallbackModel: null, costProfile: 'balanced', dailyRequestLimit: null, monthlyRequestLimit: null,
+      allowPremiumModels: false, agentOverrides: {},
       statusDetail: null, updatedAt: NOW, updatedBy: 'system',
     },
     hermesTelegram: {

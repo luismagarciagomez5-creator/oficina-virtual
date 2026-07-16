@@ -1,19 +1,35 @@
 import { useState } from 'react';
+import type { AgentId } from '../../schemas';
 import {
   applyOrchestratorCommand,
   createCentralOrchestratorState,
   createOrchestratorFixtures,
   selectActiveOrchestratorConfig,
+  selectOpenRouterModelForAgent,
 } from '../central-orchestrator';
 import type {
   CentralOrchestratorState,
   HermesTelegramConfig,
+  OpenRouterAgentModelOverride,
   OpenRouterConfig,
+  OpenRouterCostProfile,
   OrchestratorActorRole,
   OrchestratorCommand,
   OrchestratorMode,
+  ResolvedOpenRouterModel,
   WorkspaceOrchestratorBinding,
 } from '../central-orchestrator';
+
+export type ModelPolicyPatch = Partial<{
+  model: string | null;
+  fallbackModel: string | null;
+  costProfile: OpenRouterCostProfile;
+  dailyRequestLimit: number | null;
+  monthlyRequestLimit: number | null;
+  allowPremiumModels: boolean;
+}>;
+
+export type AgentOverridePatch = Partial<Omit<OpenRouterAgentModelOverride, 'updatedAt' | 'updatedBy'>>;
 
 const WORKSPACE_ID = 'workspace-demo';
 
@@ -35,6 +51,12 @@ export type OrchestratorFeed = {
   updateOpenRouterConfig: (model: string | null) => void;
   /** Only the bot identifier — the bridge endpoint is backend-provisioned, never admin-entered. */
   updateHermesBotId: (botId: string | null) => void;
+  /** Workspace-wide OpenRouter defaults (model, fallback, cost profile, limits) — no API key field, no real call. */
+  updateOpenRouterModelPolicy: (patch: ModelPolicyPatch) => void;
+  /** Per-seat override; pass `null` to clear it and fall back to the workspace policy. */
+  updateAgentModelOverride: (agentId: AgentId, patch: AgentOverridePatch | null) => void;
+  /** Resolved model + readiness for one seat (workspace default vs. its own override) — pure derivation, no network. */
+  resolveModelForAgent: (agentId: AgentId) => ResolvedOpenRouterModel;
 };
 
 export function useOrchestratorFeed(actorEmail: string, role: OrchestratorActorRole, workspaceId = WORKSPACE_ID): OrchestratorFeed {
@@ -72,6 +94,20 @@ export function useOrchestratorFeed(actorEmail: string, role: OrchestratorActorR
       occurredAt: new Date().toISOString(), expectedRevision, botId,
     }));
 
+  const updateOpenRouterModelPolicy = (patch: ModelPolicyPatch) =>
+    dispatch((expectedRevision) => ({
+      type: 'orchestrator.openrouter_model_policy_updated', commandId: crypto.randomUUID(), workspaceId, actor,
+      occurredAt: new Date().toISOString(), expectedRevision, ...patch,
+    }));
+
+  const updateAgentModelOverride = (agentId: AgentId, patch: AgentOverridePatch | null) =>
+    dispatch((expectedRevision) => ({
+      type: 'orchestrator.openrouter_agent_override_updated', commandId: crypto.randomUUID(), workspaceId, actor,
+      occurredAt: new Date().toISOString(), expectedRevision, agentId, override: patch,
+    }));
+
+  const resolveModelForAgent = (agentId: AgentId) => selectOpenRouterModelForAgent(state.binding, agentId);
+
   return {
     binding: state.binding,
     activeConfig: selectActiveOrchestratorConfig(state),
@@ -80,5 +116,8 @@ export function useOrchestratorFeed(actorEmail: string, role: OrchestratorActorR
     selectMode,
     updateOpenRouterConfig,
     updateHermesBotId,
+    updateOpenRouterModelPolicy,
+    updateAgentModelOverride,
+    resolveModelForAgent,
   };
 }

@@ -1,3 +1,5 @@
+import type { AgentId } from '../../schemas';
+
 // Per-workspace configuration of how the Orquestador actually runs.
 //
 // Two mutually exclusive modes:
@@ -39,9 +41,29 @@ export type OrchestratorActor = {
   workspaceId: string | null;
 };
 
+export type OpenRouterCostProfile = 'economy' | 'balanced' | 'premium';
+
+export type OpenRouterAgentModelOverride = {
+  model: string | null;
+  fallbackModel: string | null;
+  costProfile: OpenRouterCostProfile | null;
+  dailyRequestLimit: number | null;
+  monthlyRequestLimit: number | null;
+  allowPremiumModels: boolean | null;
+  updatedAt: string;
+  updatedBy: string;
+};
+
 export type OpenRouterConfig = {
   mode: 'openrouter';
+  /** Workspace default model. Kept as `model` for existing UI compatibility. */
   model: string | null;
+  fallbackModel: string | null;
+  costProfile: OpenRouterCostProfile;
+  dailyRequestLimit: number | null;
+  monthlyRequestLimit: number | null;
+  allowPremiumModels: boolean;
+  agentOverrides: Partial<Record<AgentId, OpenRouterAgentModelOverride>>;
   status: OrchestratorConnectionStatus;
   hasApiKey: boolean;
   statusDetail: string | null;
@@ -75,6 +97,8 @@ export type WorkspaceOrchestratorBinding = {
 export type OrchestratorAuditAction =
   | 'mode_selected'
   | 'openrouter_config_updated'
+  | 'openrouter_model_policy_updated'
+  | 'openrouter_agent_override_updated'
   | 'hermes_bot_updated'
   | 'backend_status_reported';
 
@@ -106,6 +130,27 @@ type CommandBase = {
 export type OrchestratorCommand =
   | (CommandBase & { type: 'orchestrator.mode_selected'; mode: OrchestratorMode })
   | (CommandBase & { type: 'orchestrator.openrouter_config_updated'; model: string | null })
+  | (CommandBase & {
+      type: 'orchestrator.openrouter_model_policy_updated';
+      model?: string | null;
+      fallbackModel?: string | null;
+      costProfile?: OpenRouterCostProfile;
+      dailyRequestLimit?: number | null;
+      monthlyRequestLimit?: number | null;
+      allowPremiumModels?: boolean;
+    })
+  | (CommandBase & {
+      type: 'orchestrator.openrouter_agent_override_updated';
+      agentId: AgentId;
+      override: {
+        model?: string | null;
+        fallbackModel?: string | null;
+        costProfile?: OpenRouterCostProfile | null;
+        dailyRequestLimit?: number | null;
+        monthlyRequestLimit?: number | null;
+        allowPremiumModels?: boolean | null;
+      } | null;
+    })
   // Admin-triggered: identifies *which* Telegram bot belongs to this
   // workspace. Never carries an endpoint — that's backend-provisioned.
   | (CommandBase & { type: 'orchestrator.hermes_bot_updated'; botId: string | null })
@@ -127,7 +172,8 @@ export type OrchestratorMutationErrorCode =
   | 'workspace_mismatch'
   | 'unauthorized'
   | 'stale_revision'
-  | 'invalid_endpoint';
+  | 'invalid_endpoint'
+  | 'invalid_model_policy';
 
 export type OrchestratorMutationResult =
   | { success: true; state: CentralOrchestratorState; binding: WorkspaceOrchestratorBinding; duplicate: boolean }

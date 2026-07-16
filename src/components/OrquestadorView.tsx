@@ -15,6 +15,8 @@ import {
   ORCHESTRATOR_STATUS_LABEL_ES,
   ORCHESTRATOR_STATUS_TW,
 } from '../lib/orchestratorStyles';
+import type { Agent } from '../types';
+import OrquestadorModelosView from './OrquestadorModelosView';
 import ViewHeader from './ui/ViewHeader';
 
 // Presentational only, built against my own src/central-orchestrator/ +
@@ -39,9 +41,13 @@ import ViewHeader from './ui/ViewHeader';
 // inventing new state — voice has no backing data anywhere yet, so it's
 // honestly shown as not connected. Nothing here reaches a network.
 
-type Props = { feed: OrchestratorFeed };
+type Props = { feed: OrchestratorFeed; agents: Agent[] };
 
 const MODES: OrchestratorMode[] = ['openrouter', 'hermes_telegram'];
+const TABS: { id: 'conexion' | 'modelos'; label: string }[] = [
+  { id: 'conexion', label: 'Conexión' },
+  { id: 'modelos', label: 'Modelos por puesto' },
+];
 
 function ModeCard({
   mode,
@@ -164,8 +170,9 @@ function ChannelRow({ channel }: { channel: CommandChannel }) {
   );
 }
 
-export default function OrquestadorView({ feed }: Props) {
+export default function OrquestadorView({ feed, agents }: Props) {
   const { binding } = feed;
+  const [tab, setTab] = useState<'conexion' | 'modelos'>('conexion');
   const [modelDraft, setModelDraft] = useState(binding.openrouter.model ?? '');
   const [botIdDraft, setBotIdDraft] = useState(binding.hermesTelegram.botId ?? '');
 
@@ -190,7 +197,25 @@ export default function OrquestadorView({ feed }: Props) {
         }}
       />
 
+      <div className="flex items-center gap-1 px-6 pt-3 border-b border-white/[0.06] shrink-0">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`text-[11px] font-medium px-3 py-2 border-b-2 transition-colors ${
+              tab === t.id ? 'border-violet-400 text-white' : 'border-transparent text-white/40 hover:text-white/70'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 max-w-3xl">
+        {tab === 'modelos' ? (
+          <OrquestadorModelosView feed={feed} agents={agents} />
+        ) : (
+          <>
         {feed.error && (
           <div className="rounded-lg border border-rose-500/25 bg-rose-500/[0.06] px-4 py-3 text-xs text-rose-200/85">
             {ORCHESTRATOR_ERROR_LABEL_ES[feed.error as OrchestratorMutationErrorCode] ?? feed.error}
@@ -288,6 +313,8 @@ export default function OrquestadorView({ feed }: Props) {
             <SecretIndicator has={binding.hermesTelegram.hasSecret} label="Token del bot" />
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -149,6 +149,73 @@ export type HermesBridgeResponse =
       issues?: { path: string; message: string }[];
     };
 
+export const HERMES_BRIDGE_RESULT_KINDS = ['confirmation', 'approval_request', 'summary'] as const;
+export type HermesBridgeResultKind = (typeof HERMES_BRIDGE_RESULT_KINDS)[number];
+export type HermesBridgeResultDeliveryStatus = 'accepted' | 'rejected';
+
+export const HermesBridgeResultEventSchema = z
+  .object({
+    eventId: IdentifierSchema,
+    workspaceId: IdentifierSchema,
+    connectionId: IdentifierSchema,
+    dispatchId: IdentifierSchema,
+    conversationId: IdentifierSchema,
+    taskId: IdentifierSchema,
+    commandChannel: z.enum(HERMES_COMMAND_CHANNELS),
+    kind: z.enum(HERMES_BRIDGE_RESULT_KINDS),
+    deliveryStatus: z.enum(['accepted', 'rejected']),
+    note: z.string().trim().max(1_000).nullable().default(null),
+    occurredAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+
+export type HermesBridgeResultEvent = z.infer<typeof HermesBridgeResultEventSchema>;
+
+export type HermesBridgeResultState = {
+  workspaceId: string;
+  events: HermesBridgeResultEvent[];
+  processedEventIds: string[];
+};
+
+export type HermesBridgeResultEventResponse =
+  | {
+      status: 'accepted' | 'duplicate';
+      state: HermesBridgeResultState;
+      event: HermesBridgeResultEvent;
+    }
+  | {
+      status: 'rejected';
+      code:
+        | 'invalid_result_event'
+        | 'workspace_mismatch'
+        | 'connection_mismatch'
+        | 'task_not_found';
+      issues?: { path: string; message: string }[];
+    };
+
+export type HermesBridgeDispatchStatus =
+  | {
+      status: 'found';
+      dispatchId: string;
+      workspaceId: string;
+      commandChannel: HermesCommandChannel;
+      conversationId: string;
+      taskId: string;
+      taskStatus: CentralTask['status'];
+      approvalRequired: boolean;
+      approvalStatus: CentralTask['approvalStatus'];
+      updatedAt: string;
+    }
+  | {
+      status: 'not_found' | 'workspace_mismatch';
+      dispatchId: string;
+      workspaceId: string;
+      taskId: string;
+    };
+
+const MAX_BRIDGE_RESULT_EVENTS = 2_000;
+const MAX_BRIDGE_RESULT_IDS = 2_000;
+
 function taskIdForDispatch(dispatchId: string): string {
   return `hermes-dispatch-task:${dispatchId}`;
 }
@@ -332,5 +399,81 @@ export function handleHermesBridgeRequest(
     receipt: accepted.receipt,
     task: accepted.task,
     state: accepted.state,
+  };
+}
+
+export function createHermesBridgeResultState(workspaceId: string): HermesBridgeResultState {
+  return { workspaceId, events: [], processedEventIds: [] };
+}
+
+export function selectHermesBridgeDispatchStatus(
+  taskState: CentralTaskState,
+  receipt: HermesDispatchReceipt,
+): HermesBridgeDispatchStatus {
+  if (receipt.workspaceId !== taskState.workspaceId) {
+    return {
+      status: 'workspace_mismatch',
+      dispatchId: receipt.dispatchId,
+      workspaceId: receipt.workspaceId,
+      taskId: receipt.taskId,
+    };
+  }
+
+  const task = taskState.tasks[receipt.taskId];
+  if (!task) {
+    return {
+      status: 'not_found',
+      dispatchId: receipt.dispatchId,
+      workspaceId: receipt.workspaceId,
+      taskId: receipt.taskId,
+    };
+  }
+
+  return {
+    status: 'found',
+    dispatchId: receipt.dispatchId,
+    workspaceId: receipt.workspaceId,
+    commandChannel: receipt.commandChannel,
+    conversationId: receipt.conversationId,
+    taskId: receipt.taskId,
+    taskStatus: task.status,
+    approvalRequired: task.requiresApproval,
+    approvalStatus: task.approvalStatus,
+    updatedAt: task.updatedAt,
+  };
+}
+
+export function recordHermesBridgeResultEvent(
+  state: HermesBridgeResultState,
+  taskState: CentralTaskState,
+  binding: AuthenticatedHermesBinding,
+  input: unknown,
+): HermesBridgeResultEventResponse {
+  const parsed = HermesBridgeResultEventSchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: 'rejected', code: 'invalid_result_event', issues: validationIssues(parsed.error) };
+  }
+
+  const event = parsed.data;
+  if (event.workspaceId !== state.workspaceId || event.workspaceId !== taskState.workspaceId || event.workspaceId !== binding.workspaceId) {
+    return { status: 'rejected', code: 'workspace_mismatch' };
+  }
+  if (event.connectionId !== binding.connectionId) return { status: 'rejected', code: 'connection_mismatch' };
+
+  const existingEvent = state.events.find((item) => item.eventId === event.eventId);
+  if (existingEvent || state.processedEventIds.includes(event.eventId)) {
+    return { status: 'duplicate', state, event: existingEvent ?? event };
+  }
+
+  if (!taskState.tasks[event.taskId]) return { status: 'rejected', code: 'task_not_found' };
+
+  return {
+    status: 'accepted',
+    state: {
+      ...state,
+      events: [...state.events, event].slice(-MAX_BRIDGE_RESULT_EVENTS),
+      processedEventIds: [event.eventId, ...state.processedEventIds].slice(0, MAX_BRIDGE_RESULT_IDS),
+    },
+    event,
   };
 }

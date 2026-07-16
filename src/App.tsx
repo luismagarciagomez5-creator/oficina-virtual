@@ -289,7 +289,7 @@ function OfficeApp() {
           ) : activeView === 'configurador' && isSuperAdmin ? (
             <ConfiguradorView {...officeConfigurator} />
           ) : activeView === 'orquestador' && isSuperAdmin ? (
-            <OrquestadorView feed={orchestratorFeed} />
+            <OrquestadorView feed={orchestratorFeed} agents={officeAgents} />
           ) : (
             <PlaceholderView title={VIEW_TITLES[activeView]} />
           )}
