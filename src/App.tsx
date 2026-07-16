@@ -33,6 +33,7 @@ import { useInboxFeed } from './hooks/useInboxFeed';
 import { useOfficeActivation } from './hooks/useOfficeActivation';
 import { useOfficeActivityFeed } from './hooks/useOfficeActivityFeed';
 import { useOfficeConfigurator } from './hooks/useOfficeConfigurator';
+import { useOpenRouterConnectionFeed } from './hooks/useOpenRouterConnectionFeed';
 import { useOrchestratorFeed } from './hooks/useOrchestratorFeed';
 import { useRoutineFeed } from './hooks/useRoutineFeed';
 import { useReportsFeed } from './hooks/useReportsFeed';
@@ -117,6 +118,11 @@ function OfficeApp() {
     isSuperAdmin ? 'onyxlink_super_admin' : 'workspace_admin',
   );
   const orchestratorFeed = useOrchestratorFeed(
+    user?.email ?? 'desconocido',
+    isSuperAdmin ? 'super_admin' : 'workspace_admin',
+    DEMO_CONFIGURATOR_WORKSPACE_ID,
+  );
+  const openRouterConnectionFeed = useOpenRouterConnectionFeed(
     user?.email ?? 'desconocido',
     isSuperAdmin ? 'super_admin' : 'workspace_admin',
     DEMO_CONFIGURATOR_WORKSPACE_ID,
@@ -289,7 +295,7 @@ function OfficeApp() {
           ) : activeView === 'configurador' && isSuperAdmin ? (
             <ConfiguradorView {...officeConfigurator} />
           ) : activeView === 'orquestador' && isSuperAdmin ? (
-            <OrquestadorView feed={orchestratorFeed} agents={officeAgents} />
+            <OrquestadorView feed={orchestratorFeed} agents={officeAgents} connectionFeed={openRouterConnectionFeed} />
           ) : (
             <PlaceholderView title={VIEW_TITLES[activeView]} />
           )}

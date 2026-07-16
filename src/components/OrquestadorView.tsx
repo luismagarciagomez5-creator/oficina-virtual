@@ -3,19 +3,22 @@ import { MessageCircle, Mic, Plug, UsersRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type {
   HermesTelegramConfig,
-  OrchestratorConnectionStatus,
   OrchestratorMode,
   OrchestratorMutationErrorCode,
 } from '../central-orchestrator';
 import type { OrchestratorFeed } from '../hooks/useOrchestratorFeed';
+import type { OpenRouterConnectionFeed } from '../hooks/useOpenRouterConnectionFeed';
 import {
   ORCHESTRATOR_ERROR_LABEL_ES,
   ORCHESTRATOR_MODE_DESCRIPTION_ES,
   ORCHESTRATOR_MODE_LABEL_ES,
   ORCHESTRATOR_STATUS_LABEL_ES,
   ORCHESTRATOR_STATUS_TW,
+  OPENROUTER_CONNECTION_STATUS_LABEL_ES,
+  OPENROUTER_CONNECTION_STATUS_TW,
 } from '../lib/orchestratorStyles';
 import type { Agent } from '../types';
+import OpenRouterConnectionPanel from './OpenRouterConnectionPanel';
 import OrquestadorModelosView from './OrquestadorModelosView';
 import ViewHeader from './ui/ViewHeader';
 
@@ -41,7 +44,7 @@ import ViewHeader from './ui/ViewHeader';
 // inventing new state — voice has no backing data anywhere yet, so it's
 // honestly shown as not connected. Nothing here reaches a network.
 
-type Props = { feed: OrchestratorFeed; agents: Agent[] };
+type Props = { feed: OrchestratorFeed; agents: Agent[]; connectionFeed: OpenRouterConnectionFeed };
 
 const MODES: OrchestratorMode[] = ['openrouter', 'hermes_telegram'];
 const TABS: { id: 'conexion' | 'modelos'; label: string }[] = [
@@ -52,12 +55,14 @@ const TABS: { id: 'conexion' | 'modelos'; label: string }[] = [
 function ModeCard({
   mode,
   active,
-  status,
+  statusLabel,
+  statusClassName,
   onSelect,
 }: {
   mode: OrchestratorMode;
   active: boolean;
-  status: OrchestratorConnectionStatus;
+  statusLabel: string;
+  statusClassName: string;
   onSelect: () => void;
 }) {
   return (
@@ -76,8 +81,8 @@ function ModeCard({
         )}
       </div>
       <p className="text-[11px] text-white/45 mt-1.5 leading-relaxed">{ORCHESTRATOR_MODE_DESCRIPTION_ES[mode]}</p>
-      <span className={`inline-block mt-2 text-[10px] font-medium px-2 py-0.5 rounded-full border ${ORCHESTRATOR_STATUS_TW[status]}`}>
-        {ORCHESTRATOR_STATUS_LABEL_ES[status]}
+      <span className={`inline-block mt-2 text-[10px] font-medium px-2 py-0.5 rounded-full border ${statusClassName}`}>
+        {statusLabel}
       </span>
     </button>
   );
@@ -170,7 +175,7 @@ function ChannelRow({ channel }: { channel: CommandChannel }) {
   );
 }
 
-export default function OrquestadorView({ feed, agents }: Props) {
+export default function OrquestadorView({ feed, agents, connectionFeed }: Props) {
   const { binding } = feed;
   const [tab, setTab] = useState<'conexion' | 'modelos'>('conexion');
   const [modelDraft, setModelDraft] = useState(binding.openrouter.model ?? '');
@@ -228,7 +233,12 @@ export default function OrquestadorView({ feed, agents }: Props) {
               key={mode}
               mode={mode}
               active={binding.activeMode === mode}
-              status={mode === 'openrouter' ? binding.openrouter.status : binding.hermesTelegram.status}
+              statusLabel={mode === 'openrouter'
+                ? OPENROUTER_CONNECTION_STATUS_LABEL_ES[connectionFeed.binding.status]
+                : ORCHESTRATOR_STATUS_LABEL_ES[binding.hermesTelegram.status]}
+              statusClassName={mode === 'openrouter'
+                ? OPENROUTER_CONNECTION_STATUS_TW[connectionFeed.binding.status]
+                : ORCHESTRATOR_STATUS_TW[binding.hermesTelegram.status]}
               onSelect={() => feed.selectMode(mode)}
             />
           ))}
@@ -236,10 +246,7 @@ export default function OrquestadorView({ feed, agents }: Props) {
 
         <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
           <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">OpenRouter</div>
-            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${ORCHESTRATOR_STATUS_TW[binding.openrouter.status]}`}>
-              {ORCHESTRATOR_STATUS_LABEL_ES[binding.openrouter.status]}
-            </span>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">Modelo principal de OpenRouter</div>
           </div>
           <label className="text-[10px] uppercase tracking-wide text-white/30">Modelo</label>
           <input
@@ -248,8 +255,7 @@ export default function OrquestadorView({ feed, agents }: Props) {
             placeholder="p. ej. anthropic/claude-sonnet-4.5"
             className="onyx-input w-full rounded-md px-3 py-2 text-xs mt-1"
           />
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-3 gap-2">
-            <SecretIndicator has={binding.openrouter.hasApiKey} label="API key" />
+          <div className="flex justify-end mt-3">
             <button
               onClick={() => feed.updateOpenRouterConfig(modelDraft.trim() || null)}
               disabled={!openRouterDirty}
@@ -259,6 +265,8 @@ export default function OrquestadorView({ feed, agents }: Props) {
             </button>
           </div>
         </div>
+
+        <OpenRouterConnectionPanel feed={connectionFeed} />
 
         <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
           <div className="flex items-center justify-between gap-2 mb-3">

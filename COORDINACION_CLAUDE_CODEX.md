@@ -931,3 +931,57 @@ La fuente de verdad para la siguiente UI es `src/central-orchestration/openroute
 - Solicitudes y reportes son estrictos e idempotentes. Campos desconocidos como `apiKey`, `token`, `secret` o un `connectionId` enviado por el administrador quedan rechazados.
 
 Frontera para Claude: puede consumir/exportar estos tipos y construir la UI, pero no debe modificar `src/central-orchestration/openrouter-connection.ts` ni sus tests. La UI puede elegir tipo, mostrar `binding.status`, `pendingAction`, `hasCredential`, `statusDetail` y ofrecer conectar/verificar/revocar. No debe pedir ni simular una API key, crear el `connectionId` ni ejecutar las `backendAction` contra una red real.
+
+## Bloque de Claude: interfaz de "Conexión de OpenRouter"
+
+Luis pidió, acotado explícitamente a la interfaz: elegir compartida/dedicada, estado y errores en español, indicador de credencial en backend, acciones conectar/verificar/revocar, sin tocar `central-orchestration`, sin llamadas reales y sin ningún campo que exponga secretos.
+
+No toqué `src/central-orchestration/openrouter-connection.ts` en ningún momento — solo lo importo.
+
+- `src/hooks/useOpenRouterConnectionFeed.ts` (nuevo, mío): adaptador React alrededor de `createOpenRouterConnectionState`/`handleOpenRouterConnectionRequest`. Como no existe backend real todavía, `connect`/`verify`/`revoke` solo registran la solicitud localmente — nunca fabrico un `applyOpenRouterConnectionReport` falso para simular que "ya se conectó". El resultado honesto es que tras pulsar "Conectar" el estado queda en `pending` (`pendingAction: 'connect'`) y se queda ahí hasta que un actor `system` real reporte — mismo criterio que ya se usó con el bridge de Hermes (`endpoint`/`connectionId` "aún no aprovisionado"), no inventé una finalización que no existe.
+- `src/components/OpenRouterConnectionPanel.tsx` (nuevo): selector compartida/dedicada (bloqueado en cuanto hay una conexión o una operación pendiente), badge de estado (`OPENROUTER_CONNECTION_STATUS_LABEL_ES`, incluye `revoked` que no existía en el enum de 4 estados que ya tenía `orchestratorStyles.ts` para el resto del Orquestador — por eso es un mapa nuevo, no reutilicé `ORCHESTRATOR_STATUS_LABEL_ES`), identificador de conexión de solo lectura (no es secreto según el contrato, así que se muestra igual que hice antes con el `connectionId` de Hermes), indicador de credencial (presencia únicamente) y `statusDetail` tal cual lo reporte el backend. Las acciones cambian solo con el estado: "Conectar" visible cuando no hay conexión activa; "Verificar"/"Revocar" visibles solo cuando `status === 'connected'`; ninguna visible mientras `pendingAction` no sea `null` (así se evita literalmente poder disparar `operation_in_progress`, no solo mostrar el error si ocurre).
+- `src/lib/orchestratorStyles.ts`: añadí `OPENROUTER_CONNECTION_KIND_LABEL_ES/DESCRIPTION_ES`, `OPENROUTER_CONNECTION_STATUS_LABEL_ES/TW` y `OPENROUTER_CONNECTION_ERROR_LABEL_ES` (los siete códigos de rechazo de `handleOpenRouterConnectionRequest`) — mismo patrón que el resto del archivo.
+- `src/components/OrquestadorView.tsx` + `src/App.tsx`: nueva prop `connectionFeed`, panel insertado en la pestaña Conexión justo debajo del panel de modelo OpenRouter. `App.tsx` instancia `useOpenRouterConnectionFeed` con el mismo actor/rol que ya usa `useOrchestratorFeed`.
+
+Verificación en dev server real: estado inicial con las dos tarjetas de tipo seleccionables y botón "Conectar" visible; elegí "Dedicada" y conecté — el badge pasó a "Pendiente del backend", las tarjetas de tipo quedaron bloqueadas, el botón "Conectar" desapareció (cero forma de duplicar la solicitud) y apareció "Esperando confirmación del backend para 'connect'...". Escritorio 1280px y móvil 390px sin overflow. Cero errores de consola.
+
+Validación: `npx tsc -b`, `npm run lint`, `npx vitest run` (26 archivos / 187 pruebas) y `npm run build`, todo en verde.
+
+## Bloque de Codex: adaptador backend de conexión OpenRouter
+
+El adaptador puro ya vive en `src/central-orchestration/openrouter-connection-adapter.ts` y no modifica la UI. Su entrada se construye desde la `backendAction` pendiente mediante `buildOpenRouterConnectionAdapterRequest(...)`.
+
+- `OpenRouterConnectionRegistryPort` aprovisiona/reutiliza conexiones, resuelve `connectionId` y marca revocaciones.
+- `OpenRouterCredentialVaultPort` solo recibe una `credentialRef` opaca y comprueba presencia o revoca; el contrato no puede transportar la API key.
+- `OpenRouterGatewayPort` verifica la conexión usando esa referencia backend sin devolver credenciales.
+- `handleOpenRouterConnectionBackendAction(...)` exige actor `system`, workspace y tipo correctos, ejecuta el puerto correspondiente, genera el `OpenRouterConnectionReport` y lo aplica a `OpenRouterConnectionState`.
+- Errores de autenticación, conexión ausente, credencial ausente, proveedor inaccesible o rate limit producen reportes `error` con detalle seguro en español. Fallos de infraestructura sin resultado fiable quedan `retryable_error` y no fabrican un reporte.
+- La deduplicación se conserva incluso cuando la conexión ya avanzó de `pending` a `connected`/`revoked`; el historial queda limitado a 2.000 operaciones.
+
+Frontera siguiente para Claude: puede sustituir el comportamiento local pendiente de `useOpenRouterConnectionFeed.ts` por una llamada a un endpoint backend que envuelva este adaptador y aplicar su resultado. No debe implementar los puertos en React, acceder a `credentialRef`, importar un SDK de secretos ni llamar directamente a OpenRouter. La implementación concreta del registro/vault/gateway pertenece al backend.
+
+## Bloque de Claude: cliente/puerto inyectable para la conexión de OpenRouter (sin endpoint todavía)
+
+Luis pidió conectar el feed al endpoint backend "ya congelado", recibir y aplicar reportes reales, mostrar progreso/éxito/revocación/errores y mantener las credenciales fuera del navegador. Le pregunté dónde vivía ese endpoint porque no encontré ninguna URL real en el repo ni en la conversación — su respuesta: el backend real vivirá en WhatsApp-saas pero **todavía no existe una ruta HTTP confirmada**, así que el encargo se acotó a construir únicamente el cliente/interfaz inyectable (`OpenRouterConnectionAdapterRequest` y su resultado), sin `fetch`, sin URL inventada y sin vault/credenciales/llamadas directas a OpenRouter.
+
+Mientras lo diseñaba encontré que ya habías construido el otro extremo del mismo puente: `src/central-orchestration/openrouter-connection-adapter.ts` es la lógica que se ejecuta **en el backend** (rol `system`, puertos de registro/vault/gateway inyectados) cuando ese endpoint reciba la petición. Lo que yo tenía que construir es el lado **navegador**, que en producción hará el `fetch` hacia el endpoint que envuelve tu adaptador — no lo toqué, solo lo leí para que mi contrato encajara con el tuyo en la frontera.
+
+- `src/lib/openRouterConnectionAdapter.ts` (nuevo): el puerto — `OpenRouterConnectionAdapterRequest` (correlación + la `backendAction` ya definida en tu contrato), `OpenRouterConnectionAdapterResult` (`ok` con un reporte no-secreto de 5 campos, o `error` con un mensaje) y `OpenRouterConnectionAdapter.send(...)`. `UNCONFIGURED_OPENROUTER_CONNECTION_ADAPTER` es la implementación por defecto mientras no exista ruta: resuelve al instante con un error honesto ("todavía no tiene una ruta desplegada"), nunca simula un `fetch` a una URL inventada ni fabrica un "Conectado".
+- `src/hooks/useOpenRouterConnectionFeed.ts` (reescrito): ahora recibe un `adapter` inyectable (parámetro opcional, por defecto el de arriba) y cablea la secuencia completa — 1) el reducer local acepta la solicitud y pasa a `pending` (progreso), 2) `sending` se activa mientras el adapter está en vuelo, 3) si el adapter responde `ok`, construyo el `OpenRouterConnectionReport` completo (añado `reportId`/`requestId`/`workspaceId`/`occurredAt` a los 5 campos que da el adapter) y lo aplico con `applyOpenRouterConnectionReport` como actor `system` local — así se ven de verdad "Conectado"/"Revocado"/"Error" con el `statusDetail` que reporte el backend, 4) si el adapter falla, **hago rollback al estado previo a la solicitud** en vez de dejarla `pending` para siempre: un fallo de red no dice si el backend llegó a actuar, así que solo descarto mi propia suposición optimista, nunca algo que el backend haya confirmado — y el admin puede reintentar de inmediato porque nada queda atascado.
+- `src/components/OpenRouterConnectionPanel.tsx`: añadí el banner de `adapterError` (distinto del `error` de validación local) y diferencié el texto de progreso ("Enviando solicitud... " mientras `sending`, "Esperando confirmación..." después).
+- `src/App.tsx`: sin cambios de cableado — el hook ya tenía un valor por defecto para `adapter`, así que la instancia existente sigue funcionando tal cual hasta que exista un adaptador real que inyectar.
+- Nombre compartido con tu archivo: mi `OpenRouterConnectionAdapterRequest` (cliente, 3 campos) y el tuyo (servidor, con `reportId`/`connectionKind`/`occurredAt`) vien en módulos distintos y no se mezclan — son los dos lados del mismo endpoint futuro, no el mismo tipo. Lo dejo anotado aquí por si confunde a una futura lectura.
+
+Verificación: con el adaptador por defecto (sin ruta), conectar en la app real muestra el error y hace rollback al instante — el botón "Conectar" vuelve a estar disponible, no queda atascado. Para probar los caminos de éxito/verificación/revocación (que el adaptador por defecto nunca puede alcanzar) monté un arnés aislado temporal (`verify-conn.html`/`.tsx`, borrado al terminar) con un adaptador de prueba que sí resuelve `ok`: confirmé "Conectado" con `connectionId`/credencial reales, "Verificar" sin cambios visuales indebidos, y "Revocado" con la credencial volviendo a "sin configurar" y el botón "Conectar" reapareciendo. Cero errores de consola en ambas rondas.
+
+Validación: `npx tsc -b`, `npm run lint`, `npx vitest run` (27 archivos / 196 pruebas, incluye tu `central-openrouter-connection-adapter.test.ts`) y `npm run build`, todo en verde. No toqué `central-orchestration/` en ningún momento.
+
+## Reconciliación Codex: reintento seguro del cliente OpenRouter
+
+La revisión detectó que hacer rollback ante un fallo de transporte era ambiguo: el backend podía haber completado la provisión aunque el navegador no recibiera la respuesta. Volver al estado anterior y generar un `requestId` nuevo permitía duplicar una conexión.
+
+- El estado local permanece `pending` cuando no existe un reporte fiable.
+- `retryDelivery()` reenvía la misma `backendAction` con el mismo `requestId`, conservando la idempotencia del backend.
+- La UI muestra `Reintentar envío` y no habilita una segunda operación distinta mientras la primera siga pendiente.
+- `OpenRouterConnectionAdapterResult` devuelve ahora el `OpenRouterConnectionReport` completo. `reportId`, `requestId`, workspace y fecha llegan del backend; React deja de fabricarlos.
+- El reducer central continúa validando correlación, workspace, tipo de conexión y transición antes de aceptar el reporte en el espejo local.

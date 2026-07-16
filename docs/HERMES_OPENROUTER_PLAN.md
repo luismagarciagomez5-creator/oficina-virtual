@@ -83,6 +83,26 @@ un reporte autenticado del sistema, correlacionado con la solicitud pendiente.
 Solicitudes y reportes son estrictos, idempotentes y aislados por workspace.
 Este contrato todavía no llama a OpenRouter ni guarda secretos reales.
 
+El adaptador backend puro vive en
+`src/central-orchestration/openrouter-connection-adapter.ts`. Consume la
+`backendAction` mediante tres puertos: registro de conexiones, almacén seguro
+de credenciales y gateway de verificación. Los puertos intercambian únicamente
+`credentialRef` opacas; ninguna API key forma parte de sus solicitudes,
+resultados, reportes o estado. El adaptador valida actor `system`, workspace,
+tipo de conexión y correlación, aplica el reporte a la máquina de estados y
+deduplica operaciones completadas. Los fallos del proveedor producen un estado
+`error` seguro y los fallos de infraestructura quedan como reintentables sin
+inventar una confirmación. La implementación concreta de estos puertos y el
+endpoint HTTP todavía están pendientes.
+
+El cliente del navegador se expresa mediante el puerto inyectable de
+`src/lib/openRouterConnectionAdapter.ts`. Mientras no exista endpoint utiliza
+una implementación no configurada que devuelve un error explícito y no inventa
+una URL. Ante un fallo de transporte, el feed conserva la operación `pending` y
+solo permite reenviarla con el mismo `requestId`; nunca hace rollback para crear
+una segunda operación potencialmente duplicada. El reporte sanitizado llega
+completo desde backend y vuelve a validarse antes de actualizar la interfaz.
+
 ## Modelo por especialista
 
 La oficina tendrá un modelo predeterminado y una configuración opcional por
