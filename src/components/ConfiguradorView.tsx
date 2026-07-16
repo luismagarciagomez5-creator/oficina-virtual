@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SlidersHorizontal } from 'lucide-react';
 import { agents as staticOfficeAgents } from '../agents';
 import { STANDARD_OFFICE_PRESET, selectOfficeAgentPromptOwnership } from '../central-integrations';
 import type { ConfigurableOfficeAgentId, OfficeApprovalPolicy, OfficeSpecialistAction } from '../central-integrations/configuration';
@@ -12,6 +13,7 @@ import {
   CONFIGURATION_STATUS_TW,
   SPECIALIST_ACTION_LABEL_ES,
 } from '../lib/officeConfiguratorStyles';
+import ViewHeader from './ui/ViewHeader';
 
 type Props = OfficeConfigurator;
 
@@ -191,26 +193,31 @@ export default function ConfiguradorView({
 
   return (
     <div className="h-full min-h-0 flex flex-col overflow-hidden">
-      <div className="px-6 pt-5 pb-3 border-b border-white/[0.06] shrink-0">
-        <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">
-          Oficina Virtual · Solo superadministración
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <h2 className="text-white font-semibold">Configurador de plantilla</h2>
-          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border text-violet-300/70 border-violet-400/25 bg-violet-500/[0.05]">
-            {STANDARD_OFFICE_PRESET.displayName} · v{provisioned.presetVersion}
-          </span>
-          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${CONFIGURATION_STATUS_TW[state.current.status]}`}>
-            {CONFIGURATION_STATUS_LABEL_ES[state.current.status]}
-          </span>
-        </div>
-        <p className="text-sm text-white/40 mt-0.5 max-w-2xl">
-          Todavía sin conexiones reales. Los cambios se guardan únicamente para el workspace {provisioned.workspaceId}.
-        </p>
-        <p className="text-[11px] text-white/25 mt-1">
-          Revisión {state.current.revision} · actualizada {relativeTime(state.current.updatedAt, now)} por {state.current.updatedBy}
-        </p>
-      </div>
+      <ViewHeader
+        icon={SlidersHorizontal}
+        eyebrow="Oficina Virtual · Solo superadministración"
+        title="Configurador de plantilla"
+        description={`Personalización aislada para ${provisioned.workspaceId}. Todavía sin conexiones reales.`}
+        meta={
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border text-violet-300/70 border-violet-400/25 bg-violet-500/[0.05]">
+              {STANDARD_OFFICE_PRESET.displayName} · v{provisioned.presetVersion}
+            </span>
+            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${CONFIGURATION_STATUS_TW[state.current.status]}`}>
+              {CONFIGURATION_STATUS_LABEL_ES[state.current.status]}
+            </span>
+            <span className="text-[10px] text-white/28">Revisión {state.current.revision} · {relativeTime(state.current.updatedAt, now)}</span>
+          </div>
+        }
+        guide={{
+          title: 'Configuración protegida',
+          items: [
+            'Los cambios afectan únicamente al workspace indicado en esta cabecera.',
+            'WhatsApp y Voz mantienen sus prompts en el panel y en Vapi; aquí no se duplican.',
+            'Previsualiza y valida los especialistas antes de publicar una revisión.',
+          ],
+        }}
+      />
 
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 py-5">
         <div className="w-full max-w-5xl space-y-4 pb-4">

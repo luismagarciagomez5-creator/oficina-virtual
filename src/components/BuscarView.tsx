@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Search } from 'lucide-react';
 import type { GlobalSearchCategory, GlobalSearchResult } from '../central-search';
 import type { GlobalSearchFeed } from '../hooks/useGlobalSearch';
 import { relativeTime } from '../lib/relativeTime';
 import { SEARCH_CATEGORY_LABEL_ES, SEARCH_CATEGORY_ORDER, SEARCH_CATEGORY_TW, SEARCH_ERROR_LABEL_ES } from '../lib/searchStyles';
+import ViewHeader from './ui/ViewHeader';
 
 // Presentational only — consumes Codex's real src/central-search +
 // src/hooks/useGlobalSearch.ts (GlobalSearchFeed) as-is. No reducer, fixtures
@@ -138,13 +140,19 @@ export default function BuscarView({ feed, onOpenResult }: Props) {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-6 pt-5 pb-3 border-b border-white/[0.06] shrink-0">
-        <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">Oficina Virtual</div>
-        <h2 className="text-white font-semibold">Buscar</h2>
-        <p className="text-sm text-white/40 mt-0.5 max-w-2xl">
-          Busca en contactos, conversaciones, tareas, rutinas, memoria y actividad.
-        </p>
-      </div>
+      <ViewHeader
+        icon={Search}
+        title="Búsqueda global"
+        description="Encuentra contactos, conversaciones, tareas, rutinas, recuerdos y eventos sin cambiar de módulo."
+        guide={{
+          title: 'Búsqueda más precisa',
+          items: [
+            'Escribe un nombre, teléfono, tarea o concepto recordado.',
+            'Usa las categorías para reducir resultados cuando la búsqueda sea amplia.',
+            'Navega con las flechas y pulsa Intro para abrir el resultado seleccionado.',
+          ],
+        }}
+      />
 
       <div className="px-6 pt-3 pb-2 border-b border-white/[0.06] shrink-0 flex flex-col gap-2">
         <input

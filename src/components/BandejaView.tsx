@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Inbox } from 'lucide-react';
 import type { AgentId } from '../../schemas';
 import type { InboxFeed } from '../hooks/useInboxFeed';
 import {
@@ -12,6 +13,7 @@ import { relativeTime } from '../lib/relativeTime';
 import { SOURCE_LABEL_ES } from '../lib/statusStyles';
 import type { Agent } from '../types';
 import type { InboxThread, InboxThreadStatus, InboxPriority, InboxTimelineItem } from '../central-inbox/types';
+import ViewHeader from './ui/ViewHeader';
 
 type Props = {
   feed: InboxFeed;
@@ -266,24 +268,26 @@ export default function BandejaView({ feed, agents, onOpenContact360, openContac
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-6 pt-5 pb-3 border-b border-white/[0.06] shrink-0">
-        <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">Oficina Virtual · Simulado</div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <h2 className="text-white font-semibold">Bandeja Multicanal</h2>
-          {stats.unread > 0 && (
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border text-violet-300/70 border-violet-400/25 bg-violet-500/[0.05]">
-              {stats.unread} mensaje(s) pendiente(s)
-            </span>
-          )}
-          <span className="text-[10px] text-white/30">
-            {stats.total} conversación(es) · {stats.whatsapp} WhatsApp · {stats.voice} voz · {stats.handoff} en handoff
-          </span>
-        </div>
-        <p className="text-sm text-white/40 mt-0.5 max-w-2xl">
-          Todavía sin conectar YCloud ni Vapi reales. Los mensajes y llamadas son simulados; cualquier envío queda como borrador
-          sujeto a aprobación.
-        </p>
-      </div>
+      <ViewHeader
+        icon={Inbox}
+        eyebrow="Oficina Virtual · Datos simulados"
+        title="Bandeja multicanal"
+        description="Reúne WhatsApp y Voz con responsable, prioridad, memoria y siguiente acción dentro de una misma conversación."
+        meta={
+          <div className="flex flex-wrap items-center gap-2 text-[10px] text-white/35">
+            {stats.unread > 0 && <span className="text-violet-300/75">{stats.unread} pendientes</span>}
+            <span>{stats.total} conversaciones · {stats.handoff} handoff</span>
+          </div>
+        }
+        guide={{
+          title: 'Atención multicanal',
+          items: [
+            'Prioriza conversaciones con alertas, handoff o mensajes sin leer.',
+            'Comprueba responsable y memoria antes de preparar una respuesta.',
+            'En el entorno actual todo envío queda como borrador sujeto a aprobación.',
+          ],
+        }}
+      />
 
       <div className="px-6 pt-3 pb-2 border-b border-white/[0.06] shrink-0 flex flex-wrap items-center gap-2">
         <input

@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
+import { Activity } from 'lucide-react';
 import type { OfficeActivityEvent } from '../central-events/types';
 import { relativeTime } from '../lib/relativeTime';
 import { SOURCE_LABEL_ES, SOURCE_TW_TEXT, STATUS_LABEL_ES, STATUS_TW_BG } from '../lib/statusStyles';
 import type { Agent } from '../types';
+import ViewHeader from './ui/ViewHeader';
 
 type Props = {
   events: OfficeActivityEvent[];
@@ -36,13 +38,20 @@ export default function ActividadView({ events, agents, onSelectAgent, resolveCo
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-6 pt-5 pb-3 border-b border-white/[0.06] shrink-0">
-        <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">Oficina Virtual</div>
-        <h2 className="text-white font-semibold">Actividad</h2>
-        <p className="text-sm text-white/40 mt-0.5">
-          Lo que está pasando en la oficina en tiempo real — WhatsApp, voz, automatizaciones y tareas manuales.
-        </p>
-      </div>
+      <ViewHeader
+        icon={Activity}
+        title="Actividad"
+        description="Registro cronológico de WhatsApp, voz, automatizaciones y tareas manuales de toda la oficina."
+        meta={<span className="text-[10px] text-white/35">{events.length} eventos recientes</span>}
+        guide={{
+          title: 'Qué representa este registro',
+          items: [
+            'Cada entrada conserva agente, canal, estado y hora del evento.',
+            'Selecciona una actividad para localizar al agente responsable.',
+            'Cuando exista un contacto relacionado podrás abrir directamente su perfil 360.',
+          ],
+        }}
+      />
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {events.length === 0 ? (

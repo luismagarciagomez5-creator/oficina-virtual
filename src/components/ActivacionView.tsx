@@ -4,12 +4,14 @@ import type {
   OfficeProvisioningReadiness,
   WorkspaceCapabilitySnapshot,
 } from '../central-integrations/types';
+import { Power } from 'lucide-react';
 import type { WorkspaceWhatsAppBinding } from '../central-integrations/whatsapp-binding';
 import type { ActivationScenario } from '../hooks/useOfficeActivation';
 import { INTEGRATION_HEALTH_LABEL_ES, INTEGRATION_HEALTH_TW, WHATSAPP_AGENT_TYPE_LABEL_ES } from '../lib/integrationHealthStyles';
 import { ACTIVATION_STATE_BADGE_TW, ACTIVATION_STATE_LABEL_ES } from '../lib/officeActivationStyles';
 import { relativeTime } from '../lib/relativeTime';
 import { WHATSAPP_BINDING_STATE_LABEL_ES, WHATSAPP_BINDING_STATE_TW } from '../lib/whatsappBindingStyles';
+import ViewHeader from './ui/ViewHeader';
 
 type Props = {
   snapshot: WorkspaceCapabilitySnapshot;
@@ -67,16 +69,20 @@ export default function ActivacionView({
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-6 pt-5 pb-3 border-b border-white/[0.06] shrink-0">
-        <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">
-          Oficina Virtual · Solo superadministración
-        </div>
-        <h2 className="text-white font-semibold">Activación · Oficina Virtual</h2>
-        <p className="text-sm text-white/40 mt-0.5 max-w-2xl">
-          Add-on desactivado por defecto para todo workspace. Mientras esté desactivada, ningún cliente ve
-          navegación, ruta ni contenido de Oficina Virtual.
-        </p>
-      </div>
+      <ViewHeader
+        icon={Power}
+        eyebrow="Oficina Virtual · Solo superadministración"
+        title="Activación"
+        description="Controla la disponibilidad de la oficina por workspace. Desactivada, permanece completamente oculta para el cliente."
+        guide={{
+          title: 'Activación sin errores',
+          items: [
+            'Confirma que todos los requisitos obligatorios aparecen como listos.',
+            'Verifica el workspace seleccionado antes de cambiar el interruptor.',
+            'Activa primero en un entorno de prueba y revisa el registro de decisiones.',
+          ],
+        }}
+      />
 
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 max-w-3xl">
         <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-5 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">

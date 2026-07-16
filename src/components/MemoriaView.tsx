@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Brain, Trash2 } from 'lucide-react';
 import { searchContactMemories, selectMemoryProfiles, selectMemorySources } from '../central-memory';
 import type { CentralMemoryState, ContactMemoryItem, MemoryCategory } from '../central-memory/types';
 import { relativeTime } from '../lib/relativeTime';
 import { SOURCE_LABEL_ES, SOURCE_TW_TEXT } from '../lib/statusStyles';
+import ViewHeader from './ui/ViewHeader';
 
 type Props = {
   state: CentralMemoryState;
@@ -54,9 +56,10 @@ function FactRow({
       </div>
       <button
         onClick={onForget}
-        className="shrink-0 text-[11px] text-white/30 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100"
+        className="shrink-0 inline-flex items-center gap-1.5 text-[10px] text-white/32 hover:text-rose-300 border border-transparent hover:border-rose-500/20 hover:bg-rose-500/[0.06] rounded-md px-2 py-1.5 transition-colors"
+        aria-label={`Olvidar ${item.value}`}
       >
-        Olvidar
+        <Trash2 size={12} /> Olvidar
       </button>
     </li>
   );
@@ -82,14 +85,23 @@ export default function MemoriaView({ state, onForgetItem, openContactId, openRe
   const facts = selected?.items.filter((item) => item.category !== 'preference') ?? [];
 
   return (
-    <div className="h-full flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden">
+      <ViewHeader
+        icon={Brain}
+        title="Memoria compartida"
+        description="Contexto recordado de cada contacto, consolidado entre los canales y agentes autorizados."
+        meta={<span className="text-[10px] text-white/35">{allProfiles.length} perfiles</span>}
+        guide={{
+          title: 'Uso responsable de la memoria',
+          items: [
+            'Revisa fuente, confianza y sensibilidad antes de utilizar un recuerdo.',
+            'Olvidar elimina un hecho concreto y evita que reaparezca al reproducir eventos.',
+            'No confundas un resumen generado con una confirmación reciente del contacto.',
+          ],
+        }}
+      />
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
       <div className="lg:w-72 shrink-0 lg:border-r border-white/[0.06] flex flex-col lg:h-full lg:overflow-hidden">
-        <div className="px-5 pt-5 pb-3 border-b border-white/[0.06] shrink-0">
-          <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">Oficina Virtual</div>
-          <h2 className="text-white font-semibold">Memoria</h2>
-          <p className="text-xs text-white/40 mt-0.5">Lo que la oficina recuerda de cada contacto.</p>
-        </div>
-
         <div className="px-4 pt-3 pb-2 shrink-0">
           <input
             value={query}
@@ -186,6 +198,7 @@ export default function MemoriaView({ state, onForgetItem, openContactId, openRe
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

@@ -1,6 +1,5 @@
 import { AGENT_RUNNERS } from '../agents/registry';
 import { routeForStage } from '../agents/coordinator';
-import { sendTaskToHermes } from '../adapters/hermes';
 import type { MemoryStore } from '../memory/types';
 import type { AgentId, ApprovalRequest, Stage, WorkflowRun } from '../schemas';
 import { ApprovalGate } from './approval';
@@ -75,8 +74,7 @@ export class OfficeEngine {
     switch (agentId) {
       case 'coordinator': {
         const decision = routeForStage(run.stage);
-        const hermes = await sendTaskToHermes({ text, agentId, runId: run.id });
-        return { runId: run.id, stage: run.stage, agentId, output: { ...decision, hermes } };
+        return { runId: run.id, stage: run.stage, agentId, output: decision };
       }
 
       case 'lead-intake': {

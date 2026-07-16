@@ -1,4 +1,5 @@
 import { AGENT_ORDER } from '../../agents/registry';
+import { LayoutDashboard } from 'lucide-react';
 import {
   selectAgentActivityMetrics,
   selectAttentionActivities,
@@ -9,6 +10,7 @@ import type { OfficeActivityState } from '../central-events/types';
 import { relativeTime } from '../lib/relativeTime';
 import { SOURCE_LABEL_ES, SOURCE_TW_TEXT, STATUS_LABEL_ES, STATUS_TW_BG } from '../lib/statusStyles';
 import type { Agent } from '../types';
+import ViewHeader from './ui/ViewHeader';
 
 type Props = {
   state: OfficeActivityState;
@@ -47,11 +49,19 @@ export default function PanelView({ state, agents, onSelectAgent }: Props) {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-6 pt-5 pb-3 border-b border-white/[0.06] shrink-0">
-        <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">Oficina Virtual</div>
-        <h2 className="text-white font-semibold">Panel</h2>
-        <p className="text-sm text-white/40 mt-0.5">Vista rápida del estado operativo de la oficina en tiempo real.</p>
-      </div>
+      <ViewHeader
+        icon={LayoutDashboard}
+        title="Panel operativo"
+        description="Una lectura rápida de carga, actividad y situaciones que necesitan una decisión humana."
+        guide={{
+          title: 'Orden de revisión recomendado',
+          items: [
+            'Resuelve primero bloqueos y aprobaciones pendientes.',
+            'Comprueba después la carga por agente y los elementos en cola.',
+            'Usa la actividad por canal para detectar interrupciones o desequilibrios.',
+          ],
+        }}
+      />
 
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">

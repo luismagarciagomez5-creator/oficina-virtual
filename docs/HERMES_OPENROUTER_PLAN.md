@@ -1,0 +1,119 @@
+# Plan de Orquestación: Hermes y OpenRouter
+
+## Decisión principal
+
+Cada workspace puede utilizar un único modo de Orquestador activo:
+
+1. `openrouter`: el usuario conversa desde Oficina Virtual y un modelo de OpenRouter organiza el trabajo.
+2. `hermes_telegram`: el CEO da órdenes por Telegram y Hermes dirige la Oficina Virtual como Orquestador.
+
+Los modos son excluyentes, configurables por workspace y administrados desde el panel.
+
+## Flujo de Hermes
+
+```text
+CEO da una orden en Telegram
+  -> Hermes interpreta el objetivo como Orquestador
+  -> Hermes activa un flujo completo en Oficina Virtual
+  -> Los especialistas colaboran, revisan y solicitan aprobación cuando corresponde
+  -> La acción final llega a su destino operativo: WhatsApp, Voz, CRM, archivos o informes
+  -> La oficina registra tareas, actividad, memoria y resultados
+```
+
+Hermes no es llamado automáticamente por el Coordinador interno. En modo
+`hermes_telegram`, Hermes sustituye al Orquestador. Telegram es el canal de
+mando ejecutivo, no el destino obligatorio de los resultados. Hermes puede
+enviar por Telegram confirmaciones, solicitudes de aprobación o resúmenes,
+pero el trabajo termina en el canal o sistema que corresponda.
+
+WhatsApp y Voz mantienen sus prompts y conexiones independientes. No se
+configuran como especialistas editables, pero pueden recibir acciones ya
+preparadas y aprobadas dentro del flujo. Por ejemplo, Propuestas crea una
+campaña, Revisión/QA la valida y el agente de WhatsApp la envía mediante YCloud.
+
+## Entrada segura desde Hermes
+
+Toda orden debe incluir un identificador idempotente, workspace, conexión
+autenticada, conversación, especialista, instrucciones y acciones solicitadas.
+
+- Hermes delega trabajo especializado en `proposal`, `operations`, `content` y `review-qa`.
+- Coordinador, WhatsApp y Voz son puestos protegidos; los canales ejecutan las acciones finales autorizadas.
+- La configuración de la oficina debe estar publicada.
+- Las acciones deben estar permitidas para el especialista.
+- Las acciones sensibles respetan la política de aprobación humana.
+- Un reintento de Telegram o Hermes nunca duplica una tarea.
+- Los eventos y resultados deben conservar `dispatchId`, `conversationId`, `taskId` y workspace para mantener trazabilidad, aunque no regresen a Telegram.
+
+El contrato inicial está en `src/central-orchestration/hermes-dispatch.ts`.
+
+La conexión técnica se gestiona desde backend. El administrador no debe tener
+que pegar manualmente un endpoint interno: la interfaz muestra bot, workspace,
+estado del bridge y acciones de conexión o verificación.
+
+## Conexión de OpenRouter
+
+OpenRouter se configura una vez por workspace en el backend. La API key nunca
+se guarda en el navegador, en variables `VITE_*` ni dentro de la configuración
+de un agente.
+
+El administrador puede elegir:
+
+- Reutilizar la conexión OpenRouter ya existente en el panel.
+- Utilizar una API key dedicada a Oficina Virtual dentro de la misma cuenta.
+
+Para las primeras pruebas de ONYXLINK se recomienda una clave dedicada, por
+ejemplo `oficina-virtual-onyxlink`, para separar gasto, límites, auditoría y
+revocación sin afectar al agente de WhatsApp.
+
+No se configura una API key por agente. Una conexión alimenta varios modelos.
+
+## Modelo por especialista
+
+La oficina tendrá un modelo predeterminado y una configuración opcional por
+puesto:
+
+- Modelo principal.
+- Modelo alternativo ante error o indisponibilidad.
+- Perfil de coste: económico, equilibrado o premium.
+- Límite diario y mensual.
+- Longitud máxima de respuesta y parámetros permitidos.
+- Permiso para utilizar modelos de coste elevado.
+- Consumo, coste, latencia y tasa de éxito por agente.
+
+El Orquestador interno también puede tener su propio modelo. En modo Hermes,
+Hermes organiza el trabajo, pero cada especialista continúa ejecutando con el
+modelo de OpenRouter asignado a su puesto.
+
+## Propiedad de prompts
+
+- WhatsApp conserva su prompt en el panel de WhatsApp.
+- Voz conserva su prompt en Vapi.
+- Los cuatro especialistas se configuran en Oficina Virtual.
+- No se copian ni duplican prompts entre productos.
+- Compartir una conexión OpenRouter no significa compartir prompts ni modelos.
+
+## Orden de implementación
+
+1. Terminar y probar el contrato de modos por workspace.
+2. Reconciliar el binding `hermes_telegram` con la entrada segura de órdenes.
+3. Construir el bridge backend Telegram/Hermes sin secretos en frontend.
+4. Añadir conexión OpenRouter compartida o dedicada por workspace.
+5. Añadir modelo predeterminado y override por especialista.
+6. Incorporar presupuestos, límites, fallback y métricas de coste.
+7. Activar primero el workspace de ONYXLINK en modo de prueba.
+8. Verificar el flujo completo Telegram -> Hermes -> Oficina Virtual -> especialistas/canales -> destino final.
+9. Probar el modo alternativo Oficina Virtual -> OpenRouter -> especialistas.
+10. Solo después preparar la plantilla replicable para clientes.
+
+## Criterios de aceptación
+
+- Ningún workspace puede acceder a credenciales, tareas o resultados de otro.
+- Solo existe un modo de Orquestador activo por workspace.
+- Ningún secreto llega al frontend o al registro de eventos.
+- Los reintentos no duplican tareas ni acciones externas.
+- Las acciones sensibles quedan detenidas hasta aprobación.
+- Telegram funciona como mando ejecutivo y no como bandeja obligatoria de resultados.
+- WhatsApp, Voz y otros canales solo ejecutan acciones autorizadas y trazables.
+- El gasto puede consultarse por workspace, agente y modelo.
+- Cambiar o revocar la clave de Oficina Virtual no rompe WhatsApp cuando se usa
+  una conexión dedicada.

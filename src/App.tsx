@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { agents } from './agents';
 import { AuthProvider } from './auth/AuthContext';
 import { useAuth } from './auth/useAuth';
-import AuthGate from './auth/AuthGate';
 import ActivacionView from './components/ActivacionView';
 import ActividadView from './components/ActividadView';
 import AgentesView from './components/AgentesView';
@@ -16,9 +15,11 @@ import ConfiguradorView from './components/ConfiguradorView';
 import ContactosView from './components/ContactosView';
 import InformesView from './components/InformesView';
 import MemoriaView from './components/MemoriaView';
+import OrquestadorView from './components/OrquestadorView';
 import PanelView from './components/PanelView';
 import PlaceholderView from './components/PlaceholderView';
 import RutinasView from './components/RutinasView';
+import SkillsView from './components/SkillsView';
 import Sidebar, { type ViewId } from './components/Sidebar';
 import TareasView from './components/TareasView';
 import TopBar, { type CameraMode } from './components/TopBar';
@@ -32,8 +33,10 @@ import { useInboxFeed } from './hooks/useInboxFeed';
 import { useOfficeActivation } from './hooks/useOfficeActivation';
 import { useOfficeActivityFeed } from './hooks/useOfficeActivityFeed';
 import { useOfficeConfigurator } from './hooks/useOfficeConfigurator';
+import { useOrchestratorFeed } from './hooks/useOrchestratorFeed';
 import { useRoutineFeed } from './hooks/useRoutineFeed';
 import { useReportsFeed } from './hooks/useReportsFeed';
+import { useSkillsFeed } from './hooks/useSkillsFeed';
 import { useTaskFeed } from './hooks/useTaskFeed';
 import OfficeCanvas from './three/OfficeCanvas';
 import type { GlobalSearchResult, GlobalSearchSources, GlobalSearchView } from './central-search';
@@ -59,6 +62,7 @@ const VIEW_TITLES: Record<ViewId, string> = {
   skills: 'Skills',
   activacion: 'Activación',
   configurador: 'Configurador',
+  orquestador: 'Orquestador',
 };
 
 function OfficeApp() {
@@ -74,6 +78,7 @@ function OfficeApp() {
   const inboxFeed = useInboxFeed();
   const taskFeed = useTaskFeed();
   const routineFeed = useRoutineFeed();
+  const skillsFeed = useSkillsFeed(taskFeed.state, DEMO_CONFIGURATOR_WORKSPACE_ID);
   const filesFeed = useFilesFeed();
   const searchSources = useMemo<GlobalSearchSources>(() => ({
     contacts: contact360List,
@@ -110,6 +115,11 @@ function OfficeApp() {
     DEMO_CONFIGURATOR_WORKSPACE_ID,
     user?.email ?? 'desconocido',
     isSuperAdmin ? 'onyxlink_super_admin' : 'workspace_admin',
+  );
+  const orchestratorFeed = useOrchestratorFeed(
+    user?.email ?? 'desconocido',
+    isSuperAdmin ? 'super_admin' : 'workspace_admin',
+    DEMO_CONFIGURATOR_WORKSPACE_ID,
   );
 
   // Visual posture comes from real (simulated, for now) operational events —
@@ -166,7 +176,7 @@ function OfficeApp() {
         onToggleSuperAdmin={() =>
           setIsSuperAdmin((prev) => {
             const next = !prev;
-            if (!next && (activeView === 'activacion' || activeView === 'configurador')) setActiveView('oficina');
+            if (!next && (activeView === 'activacion' || activeView === 'configurador' || activeView === 'orquestador')) setActiveView('oficina');
             return next;
           })
         }
@@ -180,6 +190,9 @@ function OfficeApp() {
           onNewTask={startNewTask}
           cameraMode={cameraMode}
           onCameraModeChange={setCameraMode}
+          viewTitle={VIEW_TITLES[activeView]}
+          isOfficeView={activeView === 'oficina'}
+          onOpenSearch={() => setActiveView('buscar')}
         />
 
         <main className="flex-1 relative">
@@ -240,6 +253,8 @@ function OfficeApp() {
             />
           ) : activeView === 'archivos' ? (
             <ArchivosView feed={filesFeed} agents={officeAgents} />
+          ) : activeView === 'skills' ? (
+            <SkillsView feed={skillsFeed} />
           ) : activeView === 'buscar' ? (
             <BuscarView feed={globalSearch} onOpenResult={openSearchResult} />
           ) : activeView === 'analiticas' ? (
@@ -273,6 +288,8 @@ function OfficeApp() {
             />
           ) : activeView === 'configurador' && isSuperAdmin ? (
             <ConfiguradorView {...officeConfigurator} />
+          ) : activeView === 'orquestador' && isSuperAdmin ? (
+            <OrquestadorView feed={orchestratorFeed} />
           ) : (
             <PlaceholderView title={VIEW_TITLES[activeView]} />
           )}
@@ -296,9 +313,7 @@ function OfficeApp() {
 function App() {
   return (
     <AuthProvider>
-      <AuthGate>
-        <OfficeApp />
-      </AuthGate>
+      <OfficeApp />
     </AuthProvider>
   );
 }

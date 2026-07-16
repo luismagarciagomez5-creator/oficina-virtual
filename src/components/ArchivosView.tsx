@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { FolderOpen } from 'lucide-react';
 import type { AgentId } from '../../schemas';
 import { selectFiles } from '../central-files';
 import type { FileAccess, FileDocument, FileFolder, FileSensitivity, FileStatus, FileVersion } from '../central-files';
@@ -17,6 +18,7 @@ import {
 } from '../lib/filesStyles';
 import { relativeTime } from '../lib/relativeTime';
 import type { Agent } from '../types';
+import ViewHeader from './ui/ViewHeader';
 
 // Presentational only — consumes Codex's real src/central-files +
 // src/hooks/useFilesFeed.ts (FilesFeed) as-is. No reducer, fixtures or
@@ -529,16 +531,20 @@ export default function ArchivosView({ feed, agents }: Props) {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div className="px-6 pt-5 pb-3 border-b border-white/[0.06] shrink-0">
-        <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">Oficina Virtual</div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <h2 className="text-white font-semibold">Archivos</h2>
-          <span className="text-[10px] text-white/30">{scopedFiles.length} archivo(s)</span>
-        </div>
-        <p className="text-sm text-white/40 mt-0.5 max-w-2xl">
-          Base de conocimiento que consultan el Orquestador y los especialistas autorizados.
-        </p>
-      </div>
+      <ViewHeader
+        icon={FolderOpen}
+        title="Archivos"
+        description="Base de conocimiento consultada por el Orquestador y los especialistas expresamente autorizados."
+        meta={<span className="text-[10px] text-white/35">{scopedFiles.length} archivos</span>}
+        guide={{
+          title: 'Control de conocimiento',
+          items: [
+            'Comprueba sensibilidad y agentes autorizados antes de publicar un archivo.',
+            'Solo los documentos listos deben alimentar respuestas o automatizaciones.',
+            'Usa las versiones para actualizar contenido sin perder trazabilidad.',
+          ],
+        }}
+      />
 
       <div className="px-6 pt-3 pb-3 border-b border-white/[0.06] shrink-0 flex flex-wrap items-center gap-1.5">
         <input

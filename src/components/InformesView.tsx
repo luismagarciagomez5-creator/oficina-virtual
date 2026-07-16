@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FileText } from 'lucide-react';
 import type { AgentId } from '../../schemas';
 import type { AnalyticsPeriod } from '../central-events';
 import type { CentralReport, ReportFormat, ReportKind } from '../central-reports';
@@ -16,6 +17,7 @@ import {
   humanizeReportColumn,
 } from '../lib/reportStyles';
 import type { Agent } from '../types';
+import ViewHeader from './ui/ViewHeader';
 
 // Presentational only. Consumes Codex's real src/central-reports +
 // src/hooks/useReportsFeed.ts (ReportsFeed) as-is — no reducer, fixtures or
@@ -259,16 +261,20 @@ export default function InformesView({ feed, agents }: Props) {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-6 pt-5 pb-3 border-b border-white/[0.06] shrink-0">
-        <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">Oficina Virtual</div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <h2 className="text-white font-semibold">Informes</h2>
-          <span className="text-[10px] text-white/30">{reports.length} informe(s)</span>
-        </div>
-        <p className="text-sm text-white/40 mt-0.5 max-w-2xl">
-          Actividad general, rendimiento por agente, canales, tareas, rutinas, aprobaciones e incidencias.
-        </p>
-      </div>
+      <ViewHeader
+        icon={FileText}
+        title="Informes"
+        description="Genera fotografías consolidadas de actividad, agentes, canales, tareas, rutinas e incidencias."
+        meta={<span className="text-[10px] text-white/35">{reports.length} informes</span>}
+        guide={{
+          title: 'Antes de generar un informe',
+          items: [
+            'Selecciona el periodo y los agentes que deben formar parte del documento.',
+            'Cada informe conserva una instantánea; los cambios posteriores no modifican el generado.',
+            'Revisa aprobaciones e incidencias antes de compartir resultados fuera del equipo.',
+          ],
+        }}
+      />
 
       <div className="px-6 pt-3 pb-1 border-b border-white/[0.06] shrink-0">
         <div className="text-[10px] text-white/30 mb-1.5">Periodo y agentes para el próximo informe</div>

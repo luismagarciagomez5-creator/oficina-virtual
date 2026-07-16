@@ -29,12 +29,9 @@ export function formatOfficeReply(agentId: AgentId, output: unknown): string {
   switch (agentId) {
     case 'coordinator': {
       const d = output as CoordinatorDecision;
-      const hermesLine = d.hermes
-        ? `\n\n${d.hermes.connected ? '🟢 Hermes' : '⚪ Hermes (sin conectar)'}: ${d.hermes.reply}`
-        : '';
       return `Te derivo a ${displayName(d.nextAgent)}.\nMotivo: ${d.reason}\nContrato esperado: ${d.expectedSchema}${
         d.requiresApproval ? '\n⚠️ Requiere aprobación humana.' : ''
-      }${hermesLine}`;
+      }`;
     }
     case 'lead-intake': {
       const l = output as LeadBrief;

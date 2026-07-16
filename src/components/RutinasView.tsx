@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Repeat2 } from 'lucide-react';
 import type { AgentId } from '../../schemas';
 import type { Routine, RoutineDraft, RoutineFeed, RoutineFrequency, RoutineStatus } from '../hooks/useRoutineFeed';
 import { EMPTY_ROUTINE_DRAFT, routineOccursOnDate, selectNextRun } from '../hooks/useRoutineFeed';
@@ -13,6 +14,7 @@ import {
   WEEKDAY_SHORT_ES,
 } from '../lib/routineStyles';
 import type { Agent } from '../types';
+import ViewHeader from './ui/ViewHeader';
 
 type Props = {
   feed: RoutineFeed;
@@ -401,16 +403,21 @@ export default function RutinasView({ feed, agents, openRoutineId, openRequestId
 
   return (
     <div className="h-full min-h-0 flex flex-col overflow-hidden">
-      <div className="px-6 pt-5 pb-3 border-b border-white/[0.06] shrink-0">
-        <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">Oficina Virtual · Workspace demo</div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <h2 className="text-white font-semibold">Rutinas</h2>
-          <span className="text-[10px] text-white/30">
-            {routines.length} rutina(s) · {routines.filter((r) => r.status === 'active').length} activa(s)
-          </span>
-        </div>
-        <p className="text-sm text-white/40 mt-0.5 max-w-2xl">Programaciones aisladas para este workspace.</p>
-      </div>
+      <ViewHeader
+        icon={Repeat2}
+        eyebrow="Oficina Virtual · Workspace demo"
+        title="Rutinas"
+        description="Programa trabajo recurrente con responsable, frecuencia y próxima ejecución siempre visibles."
+        meta={<span className="text-[10px] text-white/35">{routines.length} rutinas · {routines.filter((r) => r.status === 'active').length} activas</span>}
+        guide={{
+          title: 'Antes de activar una rutina',
+          items: [
+            'Verifica responsable, frecuencia, zona horaria y próxima ejecución.',
+            'Mantén pausada cualquier rutina que todavía no tenga instrucciones completas.',
+            'Consulta el historial para confirmar ejecuciones y detectar fallos repetidos.',
+          ],
+        }}
+      />
 
       <div className="px-6 pt-3 pb-2 border-b border-white/[0.06] shrink-0 flex flex-wrap items-center gap-2">
         <input

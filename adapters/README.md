@@ -8,22 +8,33 @@ No real adapter is implemented yet — Phase 1 only proves the office model
 (schemas, coordinator, agents, memory, approval gate, tracing). When a real
 adapter is added here, follow `estructura/prompts/04-adapter-integration.md`:
 
-## `hermes.ts` (real, but not yet connected)
+## Hermes (removed from here — see `src/central-orchestrator/`)
 
-Bridge to **Hermes**, the real OnyxLink production agent (see
-`Desktop/HERMES AGENT/AGENTS.md`) — it runs the actual business pipeline
-(captación → presupuesto → seguimiento → onboarding → informe mensual) with
-real Notion writes. Hermes today only listens on Telegram; Codex is building
-the real bridge on its side. Until then, `sendTaskToHermes` returns a
-`{ connected: false, reply: "..." }` dry-run result instead of pretending to
-reach it — the Coordinador despacho already calls this on every message and
-shows whichever result comes back.
+There used to be a `hermes.ts` adapter that had the office's Coordinador POST
+every message to the real Hermes agent (see `Desktop/HERMES AGENT/AGENTS.md`)
+for a second opinion alongside the local stage-based routing. That direction
+was wrong: **Hermes is not a tool the office's Coordinador calls** — when a
+workspace runs in `hermes_telegram` mode, Hermes *is* the Orquestador, and
+Telegram is only the channel the CEO uses to give Hermes executive orders. The
+real flow is:
 
-**To connect it for real:** set `VITE_HERMES_ENDPOINT` (a `.env` file at the
-repo root, or your shell env) to whatever URL Codex exposes. Expected
-contract: `POST { text, agentId, runId }` → `{ reply: string }`. No other
-code needs to change — `adapters/hermes.ts` is the only file that talks to
-the network.
+`Telegram → Hermes → Oficina Virtual → especialistas/canales → destino final`
+
+Hermes calls *into* the office to kick off full flows across specialists and
+channels — the office's Coordinador never calls out to Hermes. Results don't
+have to loop back through Hermes/Telegram to be delivered: a proposal can go
+through Propuestas → QA → aprobación and end up sent to the client over
+WhatsApp via YCloud. Telegram only ever receives confirmations, approval
+requests, or summaries when that's convenient — never the required
+destination of a result.
+
+The per-workspace choice between `openrouter` (the office runs its own
+Coordinador via an LLM) and `hermes_telegram` (Hermes runs it externally) now
+lives in `src/central-orchestrator/` — a pure contract with no real
+endpoints, tokens, or `VITE_*` secrets wired yet. See that module and
+`COORDINACION_CLAUDE_CODEX.md` for the connection roadmap (bridge, auth,
+signing, idempotency, event log) before any adapter talks to a real network
+endpoint again.
 
 When a real adapter is added here, follow `estructura/prompts/04-adapter-integration.md`:
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { BarChart3 } from 'lucide-react';
 import type { AgentId } from '../../schemas';
 import type { AgentWorkloadAnalytics, WorkspaceAnalytics } from '../central-analytics/types';
 import type { AnalyticsPeriod } from '../central-events';
@@ -7,6 +8,7 @@ import type { TaskSource } from '../central-tasks';
 import { ANALYTICS_PERIOD_LABEL_ES, TASK_SOURCE_LABEL_ES } from '../lib/analyticsStyles';
 import { SOURCE_LABEL_ES } from '../lib/statusStyles';
 import type { Agent } from '../types';
+import ViewHeader from './ui/ViewHeader';
 
 type Props = {
   analytics: WorkspaceAnalytics | null;
@@ -111,13 +113,20 @@ export default function AnalisisView({ analytics, error, period, onPeriodChange,
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-6 pt-5 pb-3 border-b border-white/[0.06] shrink-0">
-        <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">Oficina Virtual · Simulado</div>
-        <h2 className="text-white font-semibold">Análisis</h2>
-        <p className="text-sm text-white/40 mt-0.5 max-w-2xl">
-          Métricas por agente, canal y periodo — calculadas por <code className="text-white/50">src/central-analytics</code>.
-        </p>
-      </div>
+      <ViewHeader
+        icon={BarChart3}
+        eyebrow="Oficina Virtual · Datos simulados"
+        title="Analíticas"
+        description="Compara rendimiento, carga y evolución operativa por agente, canal y periodo."
+        guide={{
+          title: 'Cómo interpretar los datos',
+          items: [
+            'Confirma primero el periodo seleccionado antes de comparar resultados.',
+            'Filtra por agente para distinguir rendimiento individual de carga global.',
+            'Los datos actuales son simulados hasta conectar las fuentes reales del workspace.',
+          ],
+        }}
+      />
 
       <div className="px-6 pt-3 pb-2 border-b border-white/[0.06] shrink-0 flex flex-wrap items-center gap-2">
         {PERIODS.map((p) => (

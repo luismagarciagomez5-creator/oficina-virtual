@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ListTodo } from 'lucide-react';
 import type { AgentId } from '../../schemas';
 import type { Contact360, ContactChannel } from '../central-contacts/types';
 import type { Task, TaskDraft, TaskFeed, TaskPriority, TaskStatus } from '../hooks/useTaskFeed';
@@ -13,6 +14,7 @@ import {
   TASK_STATUS_TW,
 } from '../lib/taskStyles';
 import type { Agent } from '../types';
+import ViewHeader from './ui/ViewHeader';
 
 type Props = {
   feed: TaskFeed;
@@ -396,16 +398,21 @@ export default function TareasView({ feed, agents, contacts, onOpenContact360, o
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-6 pt-5 pb-3 border-b border-white/[0.06] shrink-0">
-        <div className="text-[9px] uppercase tracking-[0.18em] text-violet-300/60 mb-1">Oficina Virtual · Workspace demo</div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <h2 className="text-white font-semibold">Tareas</h2>
-          <span className="text-[10px] text-white/30">
-            {tasks.length} tarea(s) · {tasks.filter((t) => t.status === 'approval_required').length} esperando aprobación
-          </span>
-        </div>
-        <p className="text-sm text-white/40 mt-0.5 max-w-2xl">Datos de demostración aislados para este workspace.</p>
-      </div>
+      <ViewHeader
+        icon={ListTodo}
+        eyebrow="Oficina Virtual · Workspace demo"
+        title="Tareas"
+        description="Organiza el trabajo del equipo, asigna responsables y controla las decisiones que requieren aprobación."
+        meta={<span className="text-[10px] text-white/35">{tasks.length} tareas · {tasks.filter((t) => t.status === 'approval_required').length} por aprobar</span>}
+        guide={{
+          title: 'Flujo de trabajo seguro',
+          items: [
+            'Toda tarea debe tener un objetivo, una prioridad y un responsable claros.',
+            'Las acciones sensibles permanecen detenidas hasta recibir aprobación humana.',
+            'Revisa el historial del detalle para entender quién cambió cada estado.',
+          ],
+        }}
+      />
 
       <div className="px-6 pt-3 pb-2 border-b border-white/[0.06] shrink-0 flex flex-wrap items-center gap-2">
         <input
