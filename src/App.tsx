@@ -7,6 +7,7 @@ import ActivacionView from './components/ActivacionView';
 import ActividadView from './components/ActividadView';
 import AgentesView from './components/AgentesView';
 import AnalisisView from './components/AnalisisView';
+import ArchivosView from './components/ArchivosView';
 import BandejaView from './components/BandejaView';
 import BuscarView from './components/BuscarView';
 import ChatPanel from './components/ChatPanel';
@@ -26,6 +27,7 @@ import { useAnalyticsFeed } from './hooks/useAnalyticsFeed';
 import { useGlobalSearch } from './hooks/useGlobalSearch';
 import { resolveContactIdFromEvent, useContact360Feed } from './hooks/useContact360Feed';
 import { useContactMemoryFeed } from './hooks/useContactMemoryFeed';
+import { useFilesFeed } from './hooks/useFilesFeed';
 import { useInboxFeed } from './hooks/useInboxFeed';
 import { useOfficeActivation } from './hooks/useOfficeActivation';
 import { useOfficeActivityFeed } from './hooks/useOfficeActivityFeed';
@@ -72,6 +74,7 @@ function OfficeApp() {
   const inboxFeed = useInboxFeed();
   const taskFeed = useTaskFeed();
   const routineFeed = useRoutineFeed();
+  const filesFeed = useFilesFeed();
   const searchSources = useMemo<GlobalSearchSources>(() => ({
     contacts: contact360List,
     conversations: inboxFeed.threads,
@@ -235,6 +238,8 @@ function OfficeApp() {
               openRoutineId={searchOpenTarget?.view === 'rutinas' ? searchOpenTarget.entityId : null}
               openRequestId={searchOpenTarget?.requestId}
             />
+          ) : activeView === 'archivos' ? (
+            <ArchivosView feed={filesFeed} agents={officeAgents} />
           ) : activeView === 'buscar' ? (
             <BuscarView feed={globalSearch} onOpenResult={openSearchResult} />
           ) : activeView === 'analiticas' ? (
